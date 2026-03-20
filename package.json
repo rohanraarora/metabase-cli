@@ -1,0 +1,47 @@
+{
+  "name": "metabase-cli",
+  "version": "0.1.0",
+  "description": "Headless CLI interface for Metabase instances",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "metabase-cli": "./dist/metabase.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "metabase",
+    "cli",
+    "analytics",
+    "sql",
+    "dashboard"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CodingNinjas/metabase-cli.git"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "cli-table3": "^0.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "tsup": "^8.2.0",
+    "vitest": "^2.0.0",
+    "@types/node": "^20.14.0"
+  }
+}
