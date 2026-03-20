@@ -82,6 +82,11 @@ metabase-cli query run --sql "SELECT * FROM users" --db 1 --columns "id,email,na
 
 # Limit rows
 metabase-cli query run --sql "SELECT * FROM events" --db 1 --limit 100
+
+# Export to file (format auto-detected from extension)
+metabase-cli query run --sql "SELECT * FROM orders" --db 1 --output orders.csv
+metabase-cli query run --sql "SELECT * FROM orders" --db 1 --output orders.xlsx
+metabase-cli query run --sql "SELECT * FROM orders" --db 1 --output orders.json
 ```
 
 ### Questions (Saved Cards)
@@ -98,11 +103,26 @@ metabase-cli question show 42
 metabase-cli question run 42
 metabase-cli question run 42 --format csv
 
+# Run with parameters
+metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'
+
+# Export a saved question to file
+metabase-cli question run 42 --output results.csv
+metabase-cli question run 42 --output results.xlsx
+
 # Create a question
 metabase-cli question create --name "Active Users" --sql "SELECT * FROM users WHERE active = true" --db 1 --collection 5
 
+# Create with display type and visualization settings
+metabase-cli question create --name "Revenue Trend" --sql "SELECT date, sum(amount) FROM orders GROUP BY date" --db 1 --display line --viz '{"graph.show_values":true}'
+
+# Create with parameterized query (template tags)
+metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --db 1 \
+  --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'
+
 # Update a question (safe mode blocks if you're not the creator)
 metabase-cli question update 42 --name "New Name"
+metabase-cli question update 42 --display line --viz '{"graph.show_values":true}'
 metabase-cli question update 42 --sql "SELECT ..." --unsafe   # bypass safe mode
 
 # Delete a question
@@ -192,14 +212,26 @@ METABASE_UNSAFE=1 metabase-cli question update 42 --name "..."
 
 ## Output Formats
 
-All commands support `--format`:
+All query commands support `--format`:
 
-| Format  | Description              |
-|---------|--------------------------|
-| `table` | ASCII table (default)    |
-| `json`  | Raw JSON                 |
-| `csv`   | Comma-separated values   |
-| `tsv`   | Tab-separated values     |
+| Format  | Description              | Stdout | `--output` |
+|---------|--------------------------|--------|------------|
+| `table` | ASCII table (default)    | Yes    | Yes        |
+| `json`  | Raw JSON                 | Yes    | Yes        |
+| `csv`   | Comma-separated values   | Yes    | Yes        |
+| `tsv`   | Tab-separated values     | Yes    | Yes        |
+| `xlsx`  | Excel spreadsheet        | No     | Yes        |
+
+### Exporting to Files
+
+Use `--output <file>` to write results directly to a file. The format is auto-detected from the file extension:
+
+```bash
+metabase-cli query run --sql "SELECT * FROM orders" --db 1 --output orders.csv
+metabase-cli question run 42 --output results.xlsx
+```
+
+When using `--output` with CSV, JSON, or XLSX formats, the CLI uses Metabase's native export API which **bypasses the 2000-row limit** — all rows are exported.
 
 ## Library Usage
 
@@ -219,10 +251,21 @@ const dataset = new DatasetApi(client);
 const result = await dataset.queryNative(1, "SELECT * FROM users LIMIT 10");
 console.log(result.data.rows);
 
+// Export to CSV/JSON/XLSX (bypasses 2000-row limit)
+const csvBuffer = await dataset.exportBinary(
+  { type: "native", database: 1, native: { query: "SELECT * FROM orders" } },
+  "csv",
+);
+fs.writeFileSync("orders.csv", csvBuffer);
+
 // Get a question
 const cards = new CardApi(client);
 const question = await cards.get(42);
 console.log(question.name);
+
+// Export a saved question
+const xlsxBuffer = await cards.queryExportBinary(42, "xlsx");
+fs.writeFileSync("results.xlsx", xlsxBuffer);
 ```
 
 ## Security
