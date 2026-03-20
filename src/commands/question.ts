@@ -17,7 +17,10 @@ const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
 function buildParametersFromTags(tags: Record<string, any>): unknown[] {
   if (Object.keys(tags).length === 0) return [];
 
-  return Object.entries(tags).map(([name, tag]) => {
+  return Object.entries(tags).filter(([, tag]) => {
+    // Snippets and card references are not query parameters
+    return tag.type !== "snippet" && tag.type !== "card";
+  }).map(([name, tag]) => {
     const isDimension = tag.type === "dimension";
     const paramType = isDimension
       ? (tag["widget-type"] || "string/=")
@@ -235,7 +238,14 @@ Examples:
         catch { console.error("Error: --template-tags must be valid JSON"); process.exit(1); }
       }
 
-      // Auto-generate parameters from template tags
+      // Ensure all template tags have a UUID id (required by Metabase UI)
+      for (const tag of Object.values(templateTags) as any[]) {
+        if (!tag.id) {
+          tag.id = crypto.randomUUID();
+        }
+      }
+
+      // Auto-generate parameters from template tags (excludes snippets/cards)
       const parameters = buildParametersFromTags(templateTags);
 
       const card = await api.create({
