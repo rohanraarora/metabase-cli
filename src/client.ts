@@ -91,6 +91,32 @@ export class MetabaseClient {
     return this.request<T>("DELETE", path);
   }
 
+  async requestFormExport(
+    path: string,
+    fields: Record<string, string>,
+  ): Promise<Response> {
+    const url = `${this.domain}${path}`;
+    const headers: Record<string, string> = {};
+    if (this.apiKey) {
+      headers["X-Api-Key"] = this.apiKey;
+    } else if (this.sessionToken) {
+      headers["X-Metabase-Session"] = this.sessionToken;
+    }
+
+    const body = new URLSearchParams(fields);
+    const res = await fetch(url, { method: "POST", headers, body });
+
+    if (res.status === 401 && this.profile.auth.method === "session") {
+      await this.login();
+      if (this.sessionToken) {
+        headers["X-Metabase-Session"] = this.sessionToken;
+      }
+      return fetch(url, { method: "POST", headers, body: new URLSearchParams(fields) });
+    }
+
+    return res;
+  }
+
   async requestRaw(
     method: string,
     path: string,

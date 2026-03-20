@@ -1,7 +1,10 @@
 import { Command } from "commander";
+import { writeFileSync } from "node:fs";
+import { resolve, extname } from "node:path";
 import { CardApi } from "../api/card.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/output.js";
+import { EXT_TO_FORMAT } from "../utils/export.js";
 import { resolveClient, resolveDb, isUnsafe } from "./helpers.js";
 import type { OutputFormat } from "../types.js";
 
@@ -99,7 +102,8 @@ Examples:
   cmd
     .command("run <id>")
     .description("Execute a saved question")
-    .option("--format <format>", "Output format: table, json, csv, tsv", "table")
+    .option("--format <format>", "Output format: table, json, csv, tsv, xlsx", "table")
+    .option("--output <file>", "Write output to a file (format auto-detected from extension)")
     .option("--columns <cols>", "Comma-separated column names")
     .option("--params <json>", 'Parameter values as JSON, e.g. \'{"start_date":"2025-01-01"}\'')
     .addHelpText("after", `
@@ -107,11 +111,24 @@ Examples:
   $ metabase-cli question run 42
   $ metabase-cli question run 42 --format csv
   $ metabase-cli question run 42 --columns "id,name,email"
-  $ metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'`)
+  $ metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'
+  $ metabase-cli question run 42 --output results.xlsx
+  $ metabase-cli question run 42 --output results.csv`)
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
       const cardId = parseInt(id);
+
+      // Determine effective format
+      let format: string = opts.format;
+      const outputPath = opts.output ? resolve(opts.output) : null;
+      if (outputPath) {
+        const ext = extname(outputPath).toLowerCase();
+        const inferredFormat = EXT_TO_FORMAT[ext];
+        if (inferredFormat && format === "table") {
+          format = inferredFormat;
+        }
+      }
 
       // Fetch card to get parameter definitions
       const card = await api.get(cardId);
@@ -138,6 +155,35 @@ Examples:
         })
         .filter(Boolean);
 
+      // When --output is used, use Metabase's native export API to bypass the 2000-row limit
+      if (outputPath) {
+        if (format === "xlsx" || format === "csv" || format === "json") {
+          if (opts.columns) {
+            console.warn("Warning: --columns is not supported with native export (csv/json/xlsx). All columns will be exported.");
+          }
+          const data = await api.queryExportBinary(cardId, format as "csv" | "json" | "xlsx", parameterValues);
+          writeFileSync(outputPath, data);
+          console.log(`Exported to ${outputPath}`);
+        } else {
+          // table or tsv format: query normally and format locally
+          const result = await api.query(cardId, parameterValues);
+          if (result.status === "failed") {
+            console.error("Query failed:", (result as any).error);
+            process.exit(1);
+          }
+          const columns = opts.columns?.split(",");
+          const output = formatDatasetResponse(result, format as OutputFormat, columns);
+          writeFileSync(outputPath, output, "utf-8");
+          console.log(`Exported ${result.row_count} row(s) to ${outputPath}`);
+        }
+        return;
+      }
+
+      if (format === "xlsx") {
+        console.error("Error: xlsx format requires --output <file>");
+        process.exit(1);
+      }
+
       const result = await api.query(cardId, parameterValues);
 
       if (result.status === "failed") {
@@ -147,7 +193,7 @@ Examples:
 
       const columns = opts.columns?.split(",");
       console.log(
-        formatDatasetResponse(result, opts.format as OutputFormat, columns),
+        formatDatasetResponse(result, format as OutputFormat, columns),
       );
       console.log(`\n${result.row_count} row(s) returned.`);
     });

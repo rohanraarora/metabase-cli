@@ -295,4 +295,72 @@ describe("MetabaseClient", () => {
       await expect(client.login()).rejects.toThrow("Login failed: 401 invalid credentials");
     });
   });
+
+  describe("requestFormExport", () => {
+    it("sends form-encoded body with auth headers", async () => {
+      const client = new MetabaseClient(makeSessionProfile());
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        headers: new Headers({ "content-type": "text/csv" }),
+        arrayBuffer: () => Promise.resolve(new TextEncoder().encode("id,name\n1,Alice").buffer),
+      } as Response);
+
+      await client.requestFormExport("/api/dataset/csv", { query: '{"type":"native"}' });
+
+      const call = (globalThis.fetch as any).mock.calls[0];
+      expect(call[0]).toBe("https://metabase.test.com/api/dataset/csv");
+      expect(call[1].method).toBe("POST");
+      expect(call[1].headers["X-Metabase-Session"]).toBe("existing-token");
+      // Body should be URLSearchParams (no Content-Type: application/json)
+      expect(call[1].body).toBeInstanceOf(URLSearchParams);
+      expect(call[1].body.get("query")).toBe('{"type":"native"}');
+    });
+
+    it("sends API key header for API key auth", async () => {
+      const client = new MetabaseClient(makeApiKeyProfile());
+
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+      } as Response);
+
+      await client.requestFormExport("/api/dataset/csv", {});
+
+      const call = (globalThis.fetch as any).mock.calls[0];
+      expect(call[1].headers["X-Api-Key"]).toBe("mb_test_key");
+    });
+
+    it("retries on 401 for session auth", async () => {
+      const client = new MetabaseClient(makeSessionProfile());
+
+      globalThis.fetch = vi.fn()
+        // First request: 401
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+        } as Response)
+        // Login
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve({ id: "new-token" }),
+        } as Response)
+        // getCurrentUser
+        .mockResolvedValueOnce({
+          ok: true,
+          text: () => Promise.resolve(JSON.stringify({
+            id: 1, email: "t@t.com", first_name: "T", last_name: "U", is_superuser: false,
+          })),
+        } as Response)
+        // Retry
+        .mockResolvedValueOnce({
+          ok: true,
+          arrayBuffer: () => Promise.resolve(new ArrayBuffer(0)),
+        } as Response);
+
+      const res = await client.requestFormExport("/api/dataset/csv", {});
+      expect(res.ok).toBe(true);
+      expect(globalThis.fetch).toHaveBeenCalledTimes(4);
+    });
+  });
 });

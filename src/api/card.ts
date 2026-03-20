@@ -1,5 +1,6 @@
 import type { MetabaseClient } from "../client.js";
 import type { Card, DatasetResponse, DatasetQuery } from "../types.js";
+import { checkExportError } from "../utils/export.js";
 
 export interface CreateCardParams {
   name: string;
@@ -69,5 +70,26 @@ export class CardApi {
       throw new Error(`Export failed: ${res.status} ${await res.text()}`);
     }
     return res.text();
+  }
+
+  async queryExportBinary(
+    id: number,
+    format: "csv" | "json" | "xlsx",
+    parameters?: unknown[],
+  ): Promise<Buffer> {
+    const fields: Record<string, string> = {};
+    if (parameters && parameters.length > 0) {
+      fields.parameters = JSON.stringify(parameters);
+    }
+    const res = await this.client.requestFormExport(
+      `/api/card/${id}/query/${format}`,
+      fields,
+    );
+    if (!res.ok) {
+      throw new Error(`Export failed: ${res.status} ${await res.text()}`);
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    checkExportError(buf, format);
+    return buf;
   }
 }
