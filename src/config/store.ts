@@ -89,6 +89,11 @@ export function updateProfile(
   saveConfig(config);
 }
 
+export function getProfile(name: string): Profile | null {
+  const config = loadConfig();
+  return config.profiles[name] ?? null;
+}
+
 export function listProfiles(): { profiles: Profile[]; active: string } {
   const config = loadConfig();
   return {

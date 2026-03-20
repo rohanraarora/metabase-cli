@@ -10,7 +10,8 @@ import { databaseCommand, tableCommand, fieldCommand } from "../src/commands/dat
 import { searchCommand } from "../src/commands/search.js";
 import { snippetCommand } from "../src/commands/snippet.js";
 import { MetabaseClient } from "../src/client.js";
-import { getActiveProfile, updateProfile } from "../src/config/store.js";
+import { getActiveProfile, getProfile, updateProfile } from "../src/config/store.js";
+import type { Profile } from "../src/types.js";
 import { handleError } from "../src/utils/errors.js";
 import { formatJson } from "../src/utils/output.js";
 
@@ -22,7 +23,14 @@ program
   .name("metabase-cli")
   .description("Headless CLI for Metabase instances")
   .version(pkg.version)
-  .option("--unsafe", "Bypass safe mode globally");
+  .option("--unsafe", "Bypass safe mode globally")
+  .option("--profile <name>", "Use a specific profile for this command")
+  .hook("preAction", (thisCommand) => {
+    const opts = thisCommand.opts();
+    if (opts.profile) {
+      process.env._METABASE_CLI_PROFILE = opts.profile;
+    }
+  });
 
 // Top-level commands
 program.addCommand(profileCommand());
@@ -36,6 +44,18 @@ program.addCommand(fieldCommand());
 program.addCommand(searchCommand());
 program.addCommand(snippetCommand());
 
+function resolveProfile(): Profile {
+  const name = process.env._METABASE_CLI_PROFILE;
+  if (name) {
+    const p = getProfile(name);
+    if (!p) { console.error(`Error: Profile "${name}" does not exist.`); process.exit(1); }
+    return p;
+  }
+  const p = getActiveProfile();
+  if (!p) { console.error("No active profile. Run: metabase-cli profile add <name>"); process.exit(1); }
+  return p;
+}
+
 // Login command
 program
   .command("login")
@@ -44,11 +64,7 @@ program
 Examples:
   $ metabase-cli login`)
   .action(async () => {
-    const profile = getActiveProfile();
-    if (!profile) {
-      console.error("No active profile. Run: metabase-cli profile add <name>");
-      process.exit(1);
-    }
+    const profile = resolveProfile();
     if (profile.auth.method !== "session") {
       console.log("Profile uses API key auth — no login needed.");
       return;
@@ -69,11 +85,7 @@ program
 Examples:
   $ metabase-cli logout`)
   .action(async () => {
-    const profile = getActiveProfile();
-    if (!profile) {
-      console.error("No active profile.");
-      process.exit(1);
-    }
+    const profile = resolveProfile();
     const client = new MetabaseClient(profile);
     await client.logout();
     console.log("Logged out.");
@@ -89,11 +101,7 @@ Examples:
   $ metabase-cli whoami
   $ metabase-cli whoami --refresh`)
   .action(async (opts) => {
-    const profile = getActiveProfile();
-    if (!profile) {
-      console.error("No active profile.");
-      process.exit(1);
-    }
+    const profile = resolveProfile();
 
     if (!opts.refresh && profile.user) {
       console.log(`${profile.user.first_name} ${profile.user.last_name}`);
