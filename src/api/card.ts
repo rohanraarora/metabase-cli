@@ -8,11 +8,13 @@ export interface CreateCardParams {
   description?: string;
   collection_id?: number;
   visualization_settings?: Record<string, unknown>;
+  parameters?: unknown[];
 }
 
 export interface UpdateCardParams {
   name?: string;
   description?: string;
+  parameters?: unknown[];
   collection_id?: number;
   dataset_query?: DatasetQuery;
   display?: string;

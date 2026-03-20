@@ -5,6 +5,37 @@ import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/o
 import { resolveClient, resolveDb, isUnsafe } from "./helpers.js";
 import type { OutputFormat } from "../types.js";
 
+const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
+  date: "date/single",
+  text: "string/=",
+  number: "number/=",
+};
+
+function buildParametersFromTags(tags: Record<string, any>): unknown[] {
+  if (Object.keys(tags).length === 0) return [];
+
+  return Object.entries(tags).map(([name, tag]) => {
+    const isDimension = tag.type === "dimension";
+    const paramType = isDimension
+      ? (tag["widget-type"] || "string/=")
+      : (TAG_TYPE_TO_PARAM_TYPE[tag.type] || "string/=");
+
+    const param: Record<string, unknown> = {
+      id: tag.id || crypto.randomUUID(),
+      type: paramType,
+      target: isDimension
+        ? ["dimension", ["template-tag", name]]
+        : ["variable", ["template-tag", name]],
+      name: tag["display-name"] || name,
+      slug: name,
+    };
+    if (tag.default !== undefined) {
+      param.default = tag.default;
+    }
+    return param;
+  });
+}
+
 export function questionCommand(): Command {
   const cmd = new Command("question")
     .description("Manage questions (saved cards)")
@@ -70,15 +101,44 @@ Examples:
     .description("Execute a saved question")
     .option("--format <format>", "Output format: table, json, csv, tsv", "table")
     .option("--columns <cols>", "Comma-separated column names")
+    .option("--params <json>", 'Parameter values as JSON, e.g. \'{"start_date":"2025-01-01"}\'')
     .addHelpText("after", `
 Examples:
   $ metabase-cli question run 42
   $ metabase-cli question run 42 --format csv
-  $ metabase-cli question run 42 --columns "id,name,email"`)
+  $ metabase-cli question run 42 --columns "id,name,email"
+  $ metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'`)
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
-      const result = await api.query(parseInt(id));
+      const cardId = parseInt(id);
+
+      // Fetch card to get parameter definitions
+      const card = await api.get(cardId);
+      const cardParams: any[] = (card as any).parameters || [];
+
+      // Parse user-provided param values
+      let paramsInput: Record<string, unknown> = {};
+      if (opts.params) {
+        try { paramsInput = JSON.parse(opts.params); }
+        catch { console.error("Error: --params must be valid JSON"); process.exit(1); }
+      }
+
+      // Build parameter values: use provided values, fall back to defaults
+      const parameterValues = cardParams
+        .map((p: any) => {
+          const value = paramsInput[p.slug] ?? p.default;
+          if (value === undefined) return null;
+          return {
+            id: p.id,
+            type: p.type,
+            target: p.target,
+            value,
+          };
+        })
+        .filter(Boolean);
+
+      const result = await api.query(cardId, parameterValues);
 
       if (result.status === "failed") {
         console.error("Query failed:", (result as any).error);
@@ -100,24 +160,52 @@ Examples:
     .option("--db <id>", "Database ID (uses profile default if not set)", parseInt)
     .option("--description <desc>", "Description")
     .option("--collection <id>", "Collection ID", parseInt)
-    .option("--display <type>", "Display type", "table")
+    .option("--display <type>", "Display type (table, line, bar, pie, scalar, etc.)", "table")
+    .option("--viz <json>", "Visualization settings as JSON string")
+    .option("--template-tags <json>", "Template tags as JSON string for parameterized queries")
     .addHelpText("after", `
+Display types: table, line, bar, area, pie, scalar, row, scatter, funnel, map, pivot, progress, gauge, waterfall
+
 Examples:
   $ metabase-cli question create --name "Active Users" --sql "SELECT * FROM users WHERE active = true" --db 1
-  $ metabase-cli question create --name "Revenue" --sql "SELECT sum(amount) FROM orders" --db 1 --collection 5`)
+  $ metabase-cli question create --name "Revenue" --sql "SELECT sum(amount) FROM orders" --db 1 --collection 5
+  $ metabase-cli question create --name "Revenue Trend" --sql "SELECT date, sum(amount) FROM orders GROUP BY date" --display line
+  $ metabase-cli question create --name "Revenue Trend" --sql "..." --display line --viz '{"graph.show_values":true}'
+  $ metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'`)
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
       const db = resolveDb(opts.db);
+
+      let vizSettings: Record<string, unknown> = {};
+      if (opts.viz) {
+        try { vizSettings = JSON.parse(opts.viz); }
+        catch { console.error("Error: --viz must be valid JSON"); process.exit(1); }
+      }
+
+      let templateTags: Record<string, unknown> = {};
+      if (opts.templateTags) {
+        try { templateTags = JSON.parse(opts.templateTags); }
+        catch { console.error("Error: --template-tags must be valid JSON"); process.exit(1); }
+      }
+
+      // Auto-generate parameters from template tags
+      const parameters = buildParametersFromTags(templateTags);
+
       const card = await api.create({
         name: opts.name,
         display: opts.display,
         description: opts.description,
         collection_id: opts.collection,
+        visualization_settings: vizSettings,
+        parameters,
         dataset_query: {
           type: "native",
           database: db,
-          native: { query: opts.sql },
+          native: {
+            query: opts.sql,
+            "template-tags": Object.keys(templateTags).length > 0 ? templateTags : undefined,
+          },
         },
       });
       console.log(`Question #${card.id} "${card.name}" created.`);
@@ -130,13 +218,17 @@ Examples:
     .option("--description <desc>", "New description")
     .option("--collection <id>", "Move to collection", parseInt)
     .option("--sql <sql>", "New SQL query")
+    .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
+    .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText("after", `
 Safe mode blocks updates to questions you didn't create. Use --unsafe to bypass.
 
 Examples:
   $ metabase-cli question update 42 --name "New Name"
-  $ metabase-cli question update 42 --sql "SELECT * FROM users WHERE active" --unsafe`)
+  $ metabase-cli question update 42 --sql "SELECT * FROM users WHERE active" --unsafe
+  $ metabase-cli question update 42 --display line
+  $ metabase-cli question update 42 --viz '{"graph.show_values":true,"graph.dimensions":["date"]}'`)
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -148,11 +240,26 @@ Examples:
         if (opts.name) updates.name = opts.name;
         if (opts.description) updates.description = opts.description;
         if (opts.collection !== undefined) updates.collection_id = opts.collection;
+        if (opts.display) updates.display = opts.display;
+        if (opts.viz) {
+          let vizSettings: Record<string, unknown>;
+          try { vizSettings = JSON.parse(opts.viz); }
+          catch { console.error("Error: --viz must be valid JSON"); process.exit(1); }
+          // Merge with existing viz settings
+          const existing = await api.get(cardId);
+          updates.visualization_settings = {
+            ...existing.visualization_settings,
+            ...vizSettings,
+          };
+        }
         if (opts.sql) {
           const existing = await api.get(cardId);
           updates.dataset_query = {
             ...existing.dataset_query,
-            native: { query: opts.sql },
+            native: {
+              ...existing.dataset_query.native,
+              query: opts.sql,
+            },
           };
         }
         const card = await api.update(cardId, updates);
