@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
 import { Command } from "commander";
 import { profileCommand } from "../src/commands/profile.js";
 import { queryCommand } from "../src/commands/query.js";
@@ -12,12 +14,14 @@ import { getActiveProfile, updateProfile } from "../src/config/store.js";
 import { handleError } from "../src/utils/errors.js";
 import { formatJson } from "../src/utils/output.js";
 
+const pkg = JSON.parse(readFileSync(resolve(__dirname, "..", "package.json"), "utf-8"));
+
 const program = new Command();
 
 program
   .name("metabase-cli")
   .description("Headless CLI for Metabase instances")
-  .version("0.1.2")
+  .version(pkg.version)
   .option("--unsafe", "Bypass safe mode globally");
 
 // Top-level commands
