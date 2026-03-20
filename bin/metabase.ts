@@ -17,7 +17,7 @@ const program = new Command();
 program
   .name("metabase-cli")
   .description("Headless CLI for Metabase instances")
-  .version("0.1.0")
+  .version("0.1.1")
   .option("--unsafe", "Bypass safe mode globally");
 
 // Top-level commands
