@@ -17,16 +17,13 @@ Requires Node.js 18+.
 ## Quick Start
 
 ```bash
-# 1. Add a profile
+# 1. Add a profile (auto-logs in for session auth)
 metabase-cli profile add prod --domain https://metabase.example.com --email you@example.com --password secret
 
-# 2. Login (fetches and caches your user info)
-metabase-cli login
-
-# 3. Run a query
+# 2. Run a query
 metabase-cli query run --sql "SELECT * FROM users LIMIT 10" --db 1
 
-# 4. Search for a dashboard
+# 3. Search for a dashboard
 metabase-cli search "Revenue" --models dashboard
 ```
 
@@ -59,7 +56,7 @@ metabase-cli profile remove staging
 ### Authentication
 
 ```bash
-metabase-cli login               # Login and cache session + user info
+metabase-cli login               # Re-login (refresh session token)
 metabase-cli logout              # End session
 metabase-cli whoami              # Show cached user info
 metabase-cli whoami --refresh    # Re-fetch user info from server
@@ -198,7 +195,7 @@ metabase-cli snippet update 3 --content "..." --unsafe
 
 By default, **update** and **delete** operations are blocked if you are not the creator of the entity. This prevents accidentally modifying questions, dashboards, or snippets owned by other team members.
 
-Safe mode compares the entity's `creator_id` against your cached user ID (set at login time — no extra API call per operation).
+Safe mode compares the entity's `creator_id` against your cached user ID (set at profile-add or login time — no extra API call per operation).
 
 To bypass safe mode:
 

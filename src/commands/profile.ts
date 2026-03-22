@@ -9,6 +9,7 @@ import {
 } from "../config/store.js";
 import type { Profile, SessionAuth, ApiKeyAuth } from "../types.js";
 import { formatEntityTable } from "../utils/output.js";
+import { MetabaseClient } from "../client.js";
 
 export function profileCommand(): Command {
   const cmd = new Command("profile")
@@ -38,7 +39,7 @@ Examples:
   $ metabase-cli profile add prod --domain https://metabase.example.com --email you@co.com --password secret
   $ metabase-cli profile add prod --domain https://metabase.example.com --email you@co.com --password secret --default-db 1
   $ metabase-cli profile add staging --domain https://staging.example.com --api-key mb_xxxxx`)
-    .action((name: string, opts) => {
+    .action(async (name: string, opts) => {
       let auth: SessionAuth | ApiKeyAuth;
 
       if (opts.apiKey) {
@@ -58,7 +59,22 @@ Examples:
       };
 
       addProfile(profile);
-      console.log(`Profile "${name}" added and set as active.`);
+      console.log(`Profile "${name}" added.`);
+
+      if (auth.method === "session") {
+        try {
+          const client = new MetabaseClient(profile);
+          await client.login();
+          console.log(`Logged in to ${profile.domain} as ${auth.email}.`);
+          if (client.getProfile().user) {
+            const u = client.getProfile().user!;
+            console.log(`User: ${u.first_name} ${u.last_name} (ID: ${u.id})`);
+          }
+        } catch (err: any) {
+          console.warn(`Warning: Profile saved but login failed — ${err.message}`);
+          console.warn(`You can retry with: metabase-cli login`);
+        }
+      }
     });
 
   cmd
