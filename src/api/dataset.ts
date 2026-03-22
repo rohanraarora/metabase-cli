@@ -24,29 +24,18 @@ export class DatasetApi {
     });
   }
 
-  async export(
-    datasetQuery: DatasetQuery,
-    format: "csv" | "json" | "xlsx",
-  ): Promise<string> {
-    const res = await this.client.requestRaw(
-      "POST",
-      `/api/dataset/${format}`,
-      datasetQuery,
-    );
+  async export(datasetQuery: DatasetQuery, format: "csv" | "json" | "xlsx"): Promise<string> {
+    const res = await this.client.requestRaw("POST", `/api/dataset/${format}`, datasetQuery);
     if (!res.ok) {
       throw new Error(`Export failed: ${res.status} ${await res.text()}`);
     }
     return res.text();
   }
 
-  async exportBinary(
-    datasetQuery: DatasetQuery,
-    format: "csv" | "json" | "xlsx",
-  ): Promise<Buffer> {
-    const res = await this.client.requestFormExport(
-      `/api/dataset/${format}`,
-      { query: JSON.stringify(datasetQuery) },
-    );
+  async exportBinary(datasetQuery: DatasetQuery, format: "csv" | "json" | "xlsx"): Promise<Buffer> {
+    const res = await this.client.requestFormExport(`/api/dataset/${format}`, {
+      query: JSON.stringify(datasetQuery),
+    });
     if (!res.ok) {
       throw new Error(`Export failed: ${res.status} ${await res.text()}`);
     }

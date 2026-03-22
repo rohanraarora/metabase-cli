@@ -82,7 +82,8 @@ describe("MetabaseClient", () => {
       (profile.auth as any).sessionToken = undefined;
       const client = new MetabaseClient(profile);
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         // Login call
         .mockResolvedValueOnce({
           ok: true,
@@ -91,10 +92,16 @@ describe("MetabaseClient", () => {
         // getCurrentUser call
         .mockResolvedValueOnce({
           ok: true,
-          text: () => Promise.resolve(JSON.stringify({
-            id: 1, email: "test@test.com", first_name: "Test",
-            last_name: "User", is_superuser: false,
-          })),
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                id: 1,
+                email: "test@test.com",
+                first_name: "Test",
+                last_name: "User",
+                is_superuser: false,
+              }),
+            ),
         } as Response);
 
       await client.ensureAuthenticated();
@@ -215,7 +222,8 @@ describe("MetabaseClient", () => {
     it("retries on 401 for session auth", async () => {
       const client = new MetabaseClient(makeSessionProfile());
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         // First request: 401
         .mockResolvedValueOnce({
           ok: false,
@@ -231,9 +239,16 @@ describe("MetabaseClient", () => {
         // getCurrentUser
         .mockResolvedValueOnce({
           ok: true,
-          text: () => Promise.resolve(JSON.stringify({
-            id: 1, email: "t@t.com", first_name: "T", last_name: "U", is_superuser: false,
-          })),
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                id: 1,
+                email: "t@t.com",
+                first_name: "T",
+                last_name: "U",
+                is_superuser: false,
+              }),
+            ),
         } as Response)
         // Retry request
         .mockResolvedValueOnce({
@@ -254,30 +269,43 @@ describe("MetabaseClient", () => {
       (profile.auth as any).sessionToken = undefined;
       const client = new MetabaseClient(profile);
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         .mockResolvedValueOnce({
           ok: true,
           json: () => Promise.resolve({ id: "new-session-token" }),
         } as Response)
         .mockResolvedValueOnce({
           ok: true,
-          text: () => Promise.resolve(JSON.stringify({
-            id: 5, email: "test@test.com", first_name: "Test",
-            last_name: "User", is_superuser: true,
-          })),
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                id: 5,
+                email: "test@test.com",
+                first_name: "Test",
+                last_name: "User",
+                is_superuser: true,
+              }),
+            ),
         } as Response);
 
       await client.login();
 
       // Should update profile with session token
-      expect(updateProfile).toHaveBeenCalledWith("test", expect.objectContaining({
-        auth: expect.objectContaining({ sessionToken: "new-session-token" }),
-      }));
+      expect(updateProfile).toHaveBeenCalledWith(
+        "test",
+        expect.objectContaining({
+          auth: expect.objectContaining({ sessionToken: "new-session-token" }),
+        }),
+      );
 
       // Should update profile with user info
-      expect(updateProfile).toHaveBeenCalledWith("test", expect.objectContaining({
-        user: expect.objectContaining({ id: 5, is_superuser: true }),
-      }));
+      expect(updateProfile).toHaveBeenCalledWith(
+        "test",
+        expect.objectContaining({
+          user: expect.objectContaining({ id: 5, is_superuser: true }),
+        }),
+      );
 
       expect(client.getUserId()).toBe(5);
     });
@@ -334,7 +362,8 @@ describe("MetabaseClient", () => {
     it("retries on 401 for session auth", async () => {
       const client = new MetabaseClient(makeSessionProfile());
 
-      globalThis.fetch = vi.fn()
+      globalThis.fetch = vi
+        .fn()
         // First request: 401
         .mockResolvedValueOnce({
           ok: false,
@@ -348,9 +377,16 @@ describe("MetabaseClient", () => {
         // getCurrentUser
         .mockResolvedValueOnce({
           ok: true,
-          text: () => Promise.resolve(JSON.stringify({
-            id: 1, email: "t@t.com", first_name: "T", last_name: "U", is_superuser: false,
-          })),
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                id: 1,
+                email: "t@t.com",
+                first_name: "T",
+                last_name: "U",
+                is_superuser: false,
+              }),
+            ),
         } as Response)
         // Retry
         .mockResolvedValueOnce({

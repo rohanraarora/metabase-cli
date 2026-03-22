@@ -77,10 +77,7 @@ export function removeProfile(name: string): void {
   saveConfig(config);
 }
 
-export function updateProfile(
-  name: string,
-  updates: Partial<Profile>,
-): void {
+export function updateProfile(name: string, updates: Partial<Profile>): void {
   const config = loadConfig();
   if (!config.profiles[name]) {
     throw new Error(`Profile "${name}" does not exist`);

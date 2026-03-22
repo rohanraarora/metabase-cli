@@ -91,10 +91,7 @@ export class MetabaseClient {
     return this.request<T>("DELETE", path);
   }
 
-  async requestFormExport(
-    path: string,
-    fields: Record<string, string>,
-  ): Promise<Response> {
+  async requestFormExport(path: string, fields: Record<string, string>): Promise<Response> {
     const url = `${this.domain}${path}`;
     const headers: Record<string, string> = {};
     if (this.apiKey) {
@@ -117,11 +114,7 @@ export class MetabaseClient {
     return res;
   }
 
-  async requestRaw(
-    method: string,
-    path: string,
-    body?: unknown,
-  ): Promise<Response> {
+  async requestRaw(method: string, path: string, body?: unknown): Promise<Response> {
     const url = `${this.domain}${path}`;
     const res = await fetch(url, {
       method,

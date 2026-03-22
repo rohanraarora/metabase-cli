@@ -17,35 +17,37 @@ const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
 function buildParametersFromTags(tags: Record<string, any>): unknown[] {
   if (Object.keys(tags).length === 0) return [];
 
-  return Object.entries(tags).filter(([, tag]) => {
-    // Snippets and card references are not query parameters
-    return tag.type !== "snippet" && tag.type !== "card";
-  }).map(([name, tag]) => {
-    const isDimension = tag.type === "dimension";
-    const paramType = isDimension
-      ? (tag["widget-type"] || "string/=")
-      : (TAG_TYPE_TO_PARAM_TYPE[tag.type] || "string/=");
+  return Object.entries(tags)
+    .filter(([, tag]) => {
+      // Snippets and card references are not query parameters
+      return tag.type !== "snippet" && tag.type !== "card";
+    })
+    .map(([name, tag]) => {
+      const isDimension = tag.type === "dimension";
+      const paramType = isDimension
+        ? tag["widget-type"] || "string/="
+        : TAG_TYPE_TO_PARAM_TYPE[tag.type] || "string/=";
 
-    const param: Record<string, unknown> = {
-      id: tag.id || crypto.randomUUID(),
-      type: paramType,
-      target: isDimension
-        ? ["dimension", ["template-tag", name]]
-        : ["variable", ["template-tag", name]],
-      name: tag["display-name"] || name,
-      slug: name,
-    };
-    if (tag.default !== undefined) {
-      param.default = tag.default;
-    }
-    return param;
-  });
+      const param: Record<string, unknown> = {
+        id: tag.id || crypto.randomUUID(),
+        type: paramType,
+        target: isDimension
+          ? ["dimension", ["template-tag", name]]
+          : ["variable", ["template-tag", name]],
+        name: tag["display-name"] || name,
+        slug: name,
+      };
+      if (tag.default !== undefined) {
+        param.default = tag.default;
+      }
+      return param;
+    });
 }
 
 export function questionCommand(): Command {
-  const cmd = new Command("question")
-    .description("Manage questions (saved cards)")
-    .addHelpText("after", `
+  const cmd = new Command("question").description("Manage questions (saved cards)").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli question list --filter mine
   $ metabase-cli question show 42
@@ -53,18 +55,22 @@ Examples:
   $ metabase-cli question create --name "Active Users" --sql "SELECT * FROM users WHERE active" --db 1
   $ metabase-cli question update 42 --name "New Name" --unsafe
   $ metabase-cli question delete 42
-  $ metabase-cli question copy 42 --name "Copy" --collection 5`);
+  $ metabase-cli question copy 42 --name "Copy" --collection 5`,
+  );
 
   cmd
     .command("list")
     .description("List questions")
     .option("--filter <f>", "Filter: all, mine, bookmarked, archived")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli question list
   $ metabase-cli question list --filter mine
-  $ metabase-cli question list --format json`)
+  $ metabase-cli question list --format json`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -92,9 +98,12 @@ Examples:
   cmd
     .command("show <id>")
     .description("Show question details")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli question show 42`)
+  $ metabase-cli question show 42`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -109,14 +118,17 @@ Examples:
     .option("--output <file>", "Write output to a file (format auto-detected from extension)")
     .option("--columns <cols>", "Comma-separated column names")
     .option("--params <json>", 'Parameter values as JSON, e.g. \'{"start_date":"2025-01-01"}\'')
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli question run 42
   $ metabase-cli question run 42 --format csv
   $ metabase-cli question run 42 --columns "id,name,email"
   $ metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'
   $ metabase-cli question run 42 --output results.xlsx
-  $ metabase-cli question run 42 --output results.csv`)
+  $ metabase-cli question run 42 --output results.csv`,
+    )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -140,8 +152,12 @@ Examples:
       // Parse user-provided param values
       let paramsInput: Record<string, unknown> = {};
       if (opts.params) {
-        try { paramsInput = JSON.parse(opts.params); }
-        catch { console.error("Error: --params must be valid JSON"); process.exit(1); }
+        try {
+          paramsInput = JSON.parse(opts.params);
+        } catch {
+          console.error("Error: --params must be valid JSON");
+          process.exit(1);
+        }
       }
 
       // Build parameter values: use provided values, fall back to defaults
@@ -162,9 +178,15 @@ Examples:
       if (outputPath) {
         if (format === "xlsx" || format === "csv" || format === "json") {
           if (opts.columns) {
-            console.warn("Warning: --columns is not supported with native export (csv/json/xlsx). All columns will be exported.");
+            console.warn(
+              "Warning: --columns is not supported with native export (csv/json/xlsx). All columns will be exported.",
+            );
           }
-          const data = await api.queryExportBinary(cardId, format as "csv" | "json" | "xlsx", parameterValues);
+          const data = await api.queryExportBinary(
+            cardId,
+            format as "csv" | "json" | "xlsx",
+            parameterValues,
+          );
           writeFileSync(outputPath, data);
           console.log(`Exported to ${outputPath}`);
         } else {
@@ -195,9 +217,7 @@ Examples:
       }
 
       const columns = opts.columns?.split(",");
-      console.log(
-        formatDatasetResponse(result, format as OutputFormat, columns),
-      );
+      console.log(formatDatasetResponse(result, format as OutputFormat, columns));
       console.log(`\n${result.row_count} row(s) returned.`);
     });
 
@@ -212,7 +232,9 @@ Examples:
     .option("--display <type>", "Display type (table, line, bar, pie, scalar, etc.)", "table")
     .option("--viz <json>", "Visualization settings as JSON string")
     .option("--template-tags <json>", "Template tags as JSON string for parameterized queries")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Display types: table, line, bar, area, pie, scalar, row, scatter, funnel, map, pivot, progress, gauge, waterfall
 
 Examples:
@@ -220,7 +242,8 @@ Examples:
   $ metabase-cli question create --name "Revenue" --sql "SELECT sum(amount) FROM orders" --db 1 --collection 5
   $ metabase-cli question create --name "Revenue Trend" --sql "SELECT date, sum(amount) FROM orders GROUP BY date" --display line
   $ metabase-cli question create --name "Revenue Trend" --sql "..." --display line --viz '{"graph.show_values":true}'
-  $ metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'`)
+  $ metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -228,14 +251,22 @@ Examples:
 
       let vizSettings: Record<string, unknown> = {};
       if (opts.viz) {
-        try { vizSettings = JSON.parse(opts.viz); }
-        catch { console.error("Error: --viz must be valid JSON"); process.exit(1); }
+        try {
+          vizSettings = JSON.parse(opts.viz);
+        } catch {
+          console.error("Error: --viz must be valid JSON");
+          process.exit(1);
+        }
       }
 
       let templateTags: Record<string, unknown> = {};
       if (opts.templateTags) {
-        try { templateTags = JSON.parse(opts.templateTags); }
-        catch { console.error("Error: --template-tags must be valid JSON"); process.exit(1); }
+        try {
+          templateTags = JSON.parse(opts.templateTags);
+        } catch {
+          console.error("Error: --template-tags must be valid JSON");
+          process.exit(1);
+        }
       }
 
       // Ensure all template tags have a UUID id (required by Metabase UI)
@@ -277,14 +308,17 @@ Examples:
     .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
     .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
     .option("--unsafe", "Bypass safe mode", false)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Safe mode blocks updates to questions you didn't create. Use --unsafe to bypass.
 
 Examples:
   $ metabase-cli question update 42 --name "New Name"
   $ metabase-cli question update 42 --sql "SELECT * FROM users WHERE active" --unsafe
   $ metabase-cli question update 42 --display line
-  $ metabase-cli question update 42 --viz '{"graph.show_values":true,"graph.dimensions":["date"]}'`)
+  $ metabase-cli question update 42 --viz '{"graph.show_values":true,"graph.dimensions":["date"]}'`,
+    )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -299,8 +333,12 @@ Examples:
         if (opts.display) updates.display = opts.display;
         if (opts.viz) {
           let vizSettings: Record<string, unknown>;
-          try { vizSettings = JSON.parse(opts.viz); }
-          catch { console.error("Error: --viz must be valid JSON"); process.exit(1); }
+          try {
+            vizSettings = JSON.parse(opts.viz);
+          } catch {
+            console.error("Error: --viz must be valid JSON");
+            process.exit(1);
+          }
           // Merge with existing viz settings
           const existing = await api.get(cardId);
           updates.visualization_settings = {
@@ -327,10 +365,13 @@ Examples:
     .command("delete <id>")
     .description("Delete a question (safe mode by default)")
     .option("--unsafe", "Bypass safe mode", false)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli question delete 42
-  $ metabase-cli question delete 42 --unsafe`)
+  $ metabase-cli question delete 42 --unsafe`,
+    )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
       const api = new CardApi(client);
@@ -348,10 +389,13 @@ Examples:
     .description("Copy a question")
     .option("--name <name>", "Name for the copy")
     .option("--collection <id>", "Target collection", parseInt)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli question copy 42
-  $ metabase-cli question copy 42 --name "Copy of Revenue" --collection 10`)
+  $ metabase-cli question copy 42 --name "Copy of Revenue" --collection 10`,
+    )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);

@@ -190,4 +190,84 @@ export interface PaginatedResponse<T> {
   offset: number;
 }
 
+export interface Alert {
+  id: number;
+  card: { id: number; name?: string; [key: string]: unknown };
+  alert_condition: "rows" | "goal";
+  alert_first_only: boolean;
+  alert_above_goal: boolean | null;
+  creator: {
+    id: number;
+    email: string;
+    first_name: string;
+    last_name: string;
+    [key: string]: unknown;
+  };
+  channels: unknown[];
+  archived: boolean;
+  [key: string]: unknown;
+}
+
+export interface Revision {
+  id: number;
+  model: string;
+  model_id: number;
+  user: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    email: string;
+    [key: string]: unknown;
+  };
+  timestamp: string;
+  description: string | null;
+  is_reversion: boolean;
+  is_creation: boolean;
+  [key: string]: unknown;
+}
+
+export interface Timeline {
+  id: number;
+  name: string;
+  description: string | null;
+  icon: string;
+  collection_id: number | null;
+  archived: boolean;
+  events?: TimelineEvent[];
+  [key: string]: unknown;
+}
+
+export interface TimelineEvent {
+  id: number;
+  timeline_id: number;
+  name: string;
+  description: string | null;
+  timestamp: string;
+  icon: string;
+  time_matters: boolean;
+  archived: boolean;
+  [key: string]: unknown;
+}
+
+export interface Segment {
+  id: number;
+  name: string;
+  description: string | null;
+  table_id: number;
+  definition: Record<string, unknown>;
+  creator_id: number;
+  archived: boolean;
+  [key: string]: unknown;
+}
+
+export interface Notification {
+  id: number;
+  payload_type: string;
+  payload: Record<string, unknown>;
+  handlers: unknown[];
+  creator_id: number;
+  active: boolean;
+  [key: string]: unknown;
+}
+
 export type OutputFormat = "table" | "json" | "csv" | "tsv";

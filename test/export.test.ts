@@ -31,7 +31,8 @@ function mockFetchResponse(data: Buffer | string, ok = true, status = 200): Resp
     status,
     headers: new Headers(),
     text: () => Promise.resolve(buf.toString("utf-8")),
-    arrayBuffer: () => Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)),
+    arrayBuffer: () =>
+      Promise.resolve(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)),
   } as Response;
 }
 
@@ -82,10 +83,7 @@ describe("Export functionality", () => {
       globalThis.fetch = vi.fn().mockResolvedValue(mockFetchResponse("bad request", false, 400));
 
       await expect(
-        api.exportBinary(
-          { type: "native", database: 1, native: { query: "BAD SQL" } },
-          "csv",
-        ),
+        api.exportBinary({ type: "native", database: 1, native: { query: "BAD SQL" } }, "csv"),
       ).rejects.toThrow("Export failed: 400");
     });
 

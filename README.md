@@ -1,6 +1,10 @@
 # metabase-cli
 
-Headless CLI and Node.js library for interacting with [Metabase](https://www.metabase.com/) instances. Manage profiles, run queries, and CRUD questions, dashboards, collections, and snippets — all from the terminal.
+[![npm version](https://img.shields.io/npm/v/metabase-cli.svg)](https://www.npmjs.com/package/metabase-cli)
+[![CI](https://github.com/rohanraarora/metabase-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/rohanraarora/metabase-cli/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Headless CLI and Node.js library for interacting with [Metabase](https://www.metabase.com/) instances. Manage profiles, run queries, CRUD questions, dashboards, collections, snippets, alerts, segments, timelines, and more — all from the terminal.
 
 ## Install
 
@@ -140,6 +144,12 @@ metabase-cli dashboard update 7 --name "Updated Name"
 metabase-cli dashboard update 7 --name "..." --unsafe
 metabase-cli dashboard delete 7
 metabase-cli dashboard copy 7 --name "Sales Overview (copy)"
+
+# Add/remove cards from a dashboard
+metabase-cli dashboard add-card 7 --card 42
+metabase-cli dashboard add-card 7 --card 42 --width 12 --height 8
+metabase-cli dashboard add-card 7 --card 42 --row 0 --col 6
+metabase-cli dashboard remove-card 7 --card 42
 ```
 
 ### Collections
@@ -189,6 +199,72 @@ metabase-cli snippet show 3
 metabase-cli snippet create --name "Active filter" --content "WHERE active = true"
 metabase-cli snippet update 3 --content "WHERE active = true AND deleted_at IS NULL"
 metabase-cli snippet update 3 --content "..." --unsafe
+```
+
+### Alerts
+
+```bash
+metabase-cli alert list
+metabase-cli alert show 3
+metabase-cli alert create --card 42 --condition rows --first-only
+metabase-cli alert create --card 42 --condition goal --above-goal --recipients 1,2,3
+metabase-cli alert update 3 --condition goal --above-goal
+metabase-cli alert delete 3
+```
+
+### Revisions
+
+```bash
+# View revision history for a question or dashboard
+metabase-cli revision list card 42
+metabase-cli revision list dashboard 7
+
+# Revert to a specific revision
+metabase-cli revision revert card 42 123
+```
+
+### Activity
+
+```bash
+metabase-cli activity recent          # Recently viewed items
+metabase-cli activity popular         # Popular items
+```
+
+### Timelines & Events
+
+```bash
+# Manage timelines
+metabase-cli timeline list
+metabase-cli timeline show 1
+metabase-cli timeline create --name "Product Launches" --icon rocket
+metabase-cli timeline update 1 --name "Renamed"
+metabase-cli timeline delete 1
+
+# Manage timeline events
+metabase-cli timeline add-event 1 --name "v2.0 Release" --timestamp "2025-06-01T00:00:00Z"
+metabase-cli timeline add-event 1 --name "Launch" --timestamp "2025-03-15T14:30:00Z" --time-matters
+metabase-cli timeline update-event 5 --name "Renamed Event"
+metabase-cli timeline delete-event 5
+```
+
+### Segments
+
+```bash
+metabase-cli segment list
+metabase-cli segment show 1
+metabase-cli segment create --name "Big Orders" --table 5 --definition '{"filter":[">",[" field",10],100]}'
+metabase-cli segment update 1 --name "Large Orders" --revision-message "Renamed"
+metabase-cli segment delete 1
+```
+
+### Notifications
+
+```bash
+metabase-cli notification list
+metabase-cli notification show 1
+metabase-cli notification create --card 42 --channel-type email --recipients "1,2,3"
+metabase-cli notification update 1 --active false
+metabase-cli notification send 1
 ```
 
 ## Safe Mode
@@ -264,6 +340,8 @@ console.log(question.name);
 const xlsxBuffer = await cards.queryExportBinary(42, "xlsx");
 fs.writeFileSync("results.xlsx", xlsxBuffer);
 ```
+
+Additional API modules available: `AlertApi`, `RevisionApi`, `ActivityApi`, `TimelineApi`, `SegmentApi`, `NotificationApi`.
 
 ## Security
 

@@ -8,21 +8,27 @@ import { resolveClient } from "./helpers.js";
 export function databaseCommand(): Command {
   const cmd = new Command("database")
     .description("Browse databases, tables, and fields")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli database list
   $ metabase-cli database show 1
   $ metabase-cli database schemas 1
-  $ metabase-cli database tables 1 public`);
+  $ metabase-cli database tables 1 public`,
+    );
 
   cmd
     .command("list")
     .description("List all databases")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli database list
-  $ metabase-cli database list --format json`)
+  $ metabase-cli database list --format json`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new DatabaseApi(client);
@@ -45,9 +51,12 @@ Examples:
   cmd
     .command("show <id>")
     .description("Show database details")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli database show 1`)
+  $ metabase-cli database show 1`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new DatabaseApi(client);
@@ -58,9 +67,12 @@ Examples:
   cmd
     .command("metadata <id>")
     .description("Show database metadata (tables and fields)")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli database metadata 1`)
+  $ metabase-cli database metadata 1`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new DatabaseApi(client);
@@ -71,9 +83,12 @@ Examples:
   cmd
     .command("schemas <id>")
     .description("List schemas in a database")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli database schemas 1`)
+  $ metabase-cli database schemas 1`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new DatabaseApi(client);
@@ -85,10 +100,13 @@ Examples:
     .command("tables <dbId> <schema>")
     .description("List tables in a database schema")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli database tables 1 public
-  $ metabase-cli database tables 1 public --format json`)
+  $ metabase-cli database tables 1 public --format json`,
+    )
     .action(async (dbId: string, schema: string, opts) => {
       const client = await resolveClient();
       const api = new DatabaseApi(client);
@@ -112,20 +130,24 @@ Examples:
 }
 
 export function tableCommand(): Command {
-  const cmd = new Command("table")
-    .description("Inspect tables")
-    .addHelpText("after", `
+  const cmd = new Command("table").description("Inspect tables").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli table show 15
   $ metabase-cli table metadata 15
-  $ metabase-cli table fks 15`);
+  $ metabase-cli table fks 15`,
+  );
 
   cmd
     .command("show <id>")
     .description("Show table details")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli table show 15`)
+  $ metabase-cli table show 15`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new TableApi(client);
@@ -137,10 +159,13 @@ Examples:
     .command("metadata <id>")
     .description("Show table metadata with fields")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli table metadata 15
-  $ metabase-cli table metadata 15 --format json`)
+  $ metabase-cli table metadata 15 --format json`,
+    )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new TableApi(client);
@@ -166,9 +191,12 @@ Examples:
   cmd
     .command("fks <id>")
     .description("Show foreign keys for a table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli table fks 15`)
+  $ metabase-cli table fks 15`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new TableApi(client);
@@ -180,19 +208,23 @@ Examples:
 }
 
 export function fieldCommand(): Command {
-  const cmd = new Command("field")
-    .description("Inspect fields")
-    .addHelpText("after", `
+  const cmd = new Command("field").description("Inspect fields").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli field show 100
-  $ metabase-cli field values 100`);
+  $ metabase-cli field values 100`,
+  );
 
   cmd
     .command("show <id>")
     .description("Show field details")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli field show 100`)
+  $ metabase-cli field show 100`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new FieldApi(client);
@@ -203,9 +235,12 @@ Examples:
   cmd
     .command("values <id>")
     .description("Show distinct values for a field")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli field values 100`)
+  $ metabase-cli field values 100`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new FieldApi(client);

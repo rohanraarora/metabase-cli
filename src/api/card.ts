@@ -61,11 +61,9 @@ export class CardApi {
     format: "csv" | "json" | "xlsx",
     parameters?: unknown[],
   ): Promise<string> {
-    const res = await this.client.requestRaw(
-      "POST",
-      `/api/card/${id}/query/${format}`,
-      { parameters: parameters ?? [] },
-    );
+    const res = await this.client.requestRaw("POST", `/api/card/${id}/query/${format}`, {
+      parameters: parameters ?? [],
+    });
     if (!res.ok) {
       throw new Error(`Export failed: ${res.status} ${await res.text()}`);
     }
@@ -81,10 +79,7 @@ export class CardApi {
     if (parameters && parameters.length > 0) {
       fields.parameters = JSON.stringify(parameters);
     }
-    const res = await this.client.requestFormExport(
-      `/api/card/${id}/query/${format}`,
-      fields,
-    );
+    const res = await this.client.requestFormExport(`/api/card/${id}/query/${format}`, fields);
     if (!res.ok) {
       throw new Error(`Export failed: ${res.status} ${await res.text()}`);
     }

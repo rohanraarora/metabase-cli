@@ -12,9 +12,9 @@ import { formatEntityTable } from "../utils/output.js";
 import { MetabaseClient } from "../client.js";
 
 export function profileCommand(): Command {
-  const cmd = new Command("profile")
-    .description("Manage Metabase profiles")
-    .addHelpText("after", `
+  const cmd = new Command("profile").description("Manage Metabase profiles").addHelpText(
+    "after",
+    `
 The first profile added becomes the default (active) profile.
 All commands use the active profile unless you switch with 'profile switch'.
 
@@ -24,7 +24,8 @@ Examples:
   $ metabase-cli profile list
   $ metabase-cli profile switch staging
   $ metabase-cli profile current
-  $ metabase-cli profile remove staging`);
+  $ metabase-cli profile remove staging`,
+  );
 
   cmd
     .command("add <name>")
@@ -34,11 +35,14 @@ Examples:
     .option("--password <password>", "Login password")
     .option("--api-key <key>", "API key (alternative to email/password)")
     .option("--default-db <id>", "Default database ID for queries", parseInt)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli profile add prod --domain https://metabase.example.com --email you@co.com --password secret
   $ metabase-cli profile add prod --domain https://metabase.example.com --email you@co.com --password secret --default-db 1
-  $ metabase-cli profile add staging --domain https://staging.example.com --api-key mb_xxxxx`)
+  $ metabase-cli profile add staging --domain https://staging.example.com --api-key mb_xxxxx`,
+    )
     .action(async (name: string, opts) => {
       let auth: SessionAuth | ApiKeyAuth;
 
@@ -80,9 +84,12 @@ Examples:
   cmd
     .command("list")
     .description("List all profiles (* = active/default)")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli profile list`)
+  $ metabase-cli profile list`,
+    )
     .action(() => {
       const { profiles, active } = listProfiles();
       if (profiles.length === 0) {
@@ -94,7 +101,9 @@ Examples:
         name: p.name,
         domain: p.domain,
         auth: p.auth.method,
-        user: p.user ? `${p.user.first_name} ${p.user.last_name} (${p.user.email})` : "not logged in",
+        user: p.user
+          ? `${p.user.first_name} ${p.user.last_name} (${p.user.email})`
+          : "not logged in",
       }));
       console.log(
         formatEntityTable(items, [
@@ -110,9 +119,12 @@ Examples:
   cmd
     .command("switch <name>")
     .description("Switch active (default) profile")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli profile switch staging`)
+  $ metabase-cli profile switch staging`,
+    )
     .action((name: string) => {
       setActiveProfile(name);
       console.log(`Switched to profile "${name}".`);
@@ -121,9 +133,12 @@ Examples:
   cmd
     .command("remove <name>")
     .description("Remove a profile")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli profile remove staging`)
+  $ metabase-cli profile remove staging`,
+    )
     .action((name: string) => {
       removeProfile(name);
       console.log(`Profile "${name}" removed.`);
@@ -132,9 +147,12 @@ Examples:
   cmd
     .command("current")
     .description("Show current active (default) profile")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli profile current`)
+  $ metabase-cli profile current`,
+    )
     .action(() => {
       const profile = getActiveProfile();
       if (!profile) {
@@ -145,7 +163,9 @@ Examples:
       console.log(`Domain:  ${profile.domain}`);
       console.log(`Auth:    ${profile.auth.method}`);
       if (profile.user) {
-        console.log(`User:    ${profile.user.first_name} ${profile.user.last_name} (${profile.user.email})`);
+        console.log(
+          `User:    ${profile.user.first_name} ${profile.user.last_name} (${profile.user.email})`,
+        );
       }
       if (profile.defaultDb) {
         console.log(`Default DB: ${profile.defaultDb}`);
@@ -155,12 +175,15 @@ Examples:
   cmd
     .command("set-default-db <id>")
     .description("Set the default database ID for the active profile")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 The default database is used when --db is not specified in query/question commands.
 
 Examples:
   $ metabase-cli profile set-default-db 1
-  $ metabase-cli profile set-default-db 3`)
+  $ metabase-cli profile set-default-db 3`,
+    )
     .action((id: string) => {
       const profile = getActiveProfile();
       if (!profile) {

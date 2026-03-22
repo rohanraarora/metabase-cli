@@ -14,7 +14,10 @@ export class SafetyGuard {
     this.unsafe = unsafe;
   }
 
-  async checkOwnership(entityType: string, entityId: number): Promise<{ owned: boolean; creatorId: number }> {
+  async checkOwnership(
+    entityType: string,
+    entityId: number,
+  ): Promise<{ owned: boolean; creatorId: number }> {
     const pathMap: Record<string, string> = {
       card: `/api/card/${entityId}`,
       dashboard: `/api/dashboard/${entityId}`,
@@ -31,7 +34,9 @@ export class SafetyGuard {
     const userId = this.client.getUserId();
 
     if (userId === null) {
-      throw new Error("No cached user ID. Run 'metabase-cli login' or 'metabase-cli whoami --refresh' first.");
+      throw new Error(
+        "No cached user ID. Run 'metabase-cli login' or 'metabase-cli whoami --refresh' first.",
+      );
     }
 
     return {
@@ -56,8 +61,8 @@ export class SafetyGuard {
       const userId = this.client.getUserId();
       throw new Error(
         `Safe mode: Cannot ${action} ${entityType} #${entityId} — ` +
-        `owned by user #${creatorId}, you are user #${userId}. ` +
-        `Use --unsafe to bypass.`,
+          `owned by user #${creatorId}, you are user #${userId}. ` +
+          `Use --unsafe to bypass.`,
       );
     }
 

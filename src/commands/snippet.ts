@@ -5,24 +5,28 @@ import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient, isUnsafe } from "./helpers.js";
 
 export function snippetCommand(): Command {
-  const cmd = new Command("snippet")
-    .description("Manage SQL snippets")
-    .addHelpText("after", `
+  const cmd = new Command("snippet").description("Manage SQL snippets").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli snippet list
   $ metabase-cli snippet show 3
   $ metabase-cli snippet create --name "Active filter" --content "WHERE active = true"
-  $ metabase-cli snippet update 3 --content "WHERE active AND NOT deleted" --unsafe`);
+  $ metabase-cli snippet update 3 --content "WHERE active AND NOT deleted" --unsafe`,
+  );
 
   cmd
     .command("list")
     .description("List snippets")
     .option("--archived", "Include archived snippets")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli snippet list
-  $ metabase-cli snippet list --archived --format json`)
+  $ metabase-cli snippet list --archived --format json`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new SnippetApi(client);
@@ -49,9 +53,12 @@ Examples:
   cmd
     .command("show <id>")
     .description("Show snippet details and content")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli snippet show 3`)
+  $ metabase-cli snippet show 3`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new SnippetApi(client);
@@ -66,10 +73,13 @@ Examples:
     .requiredOption("--content <sql>", "SQL content")
     .option("--description <desc>", "Description")
     .option("--collection <id>", "Collection ID", parseInt)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli snippet create --name "Active filter" --content "WHERE active = true"
-  $ metabase-cli snippet create --name "Date range" --content "WHERE created_at > NOW() - INTERVAL '30 days'"`)
+  $ metabase-cli snippet create --name "Date range" --content "WHERE created_at > NOW() - INTERVAL '30 days'"`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new SnippetApi(client);
@@ -89,12 +99,15 @@ Examples:
     .option("--content <sql>", "New SQL content")
     .option("--description <desc>", "New description")
     .option("--unsafe", "Bypass safe mode", false)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Safe mode blocks updates to snippets you didn't create. Use --unsafe to bypass.
 
 Examples:
   $ metabase-cli snippet update 3 --content "WHERE active = true AND deleted_at IS NULL"
-  $ metabase-cli snippet update 3 --name "New Name" --unsafe`)
+  $ metabase-cli snippet update 3 --name "New Name" --unsafe`,
+    )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
       const api = new SnippetApi(client);

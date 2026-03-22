@@ -35,7 +35,9 @@ export function resolveDb(optDb: number | undefined): number {
   if (optDb !== undefined) return optDb;
   const profile = resolveProfile();
   if (profile?.defaultDb) return profile.defaultDb;
-  console.error("Error: --db is required (or set a default with: metabase-cli profile set-default-db <id>)");
+  console.error(
+    "Error: --db is required (or set a default with: metabase-cli profile set-default-db <id>)",
+  );
   process.exit(1);
 }
 

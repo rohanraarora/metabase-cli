@@ -13,9 +13,7 @@ export function formatDatasetResponse(
   let colIndices: number[];
   if (columns?.length) {
     colIndices = columns.map((name) => {
-      const idx = cols.findIndex(
-        (c) => c.name === name || c.display_name === name,
-      );
+      const idx = cols.findIndex((c) => c.name === name || c.display_name === name);
       if (idx === -1) throw new Error(`Column "${name}" not found`);
       return idx;
     });
@@ -30,9 +28,7 @@ export function formatDatasetResponse(
     case "json":
       return JSON.stringify(
         filteredRows.map((row) =>
-          Object.fromEntries(
-            filteredCols.map((col, i) => [col.name, row[i]]),
-          ),
+          Object.fromEntries(filteredCols.map((col, i) => [col.name, row[i]])),
         ),
         null,
         2,
@@ -50,11 +46,7 @@ export function formatDatasetResponse(
   }
 }
 
-function formatDelimited(
-  cols: { name: string }[],
-  rows: unknown[][],
-  delimiter: string,
-): string {
+function formatDelimited(cols: { name: string }[], rows: unknown[][], delimiter: string): string {
   const header = cols.map((c) => escapeCsvField(String(c.name), delimiter)).join(delimiter);
   const body = rows.map((row) =>
     row.map((cell) => escapeCsvField(formatCell(cell), delimiter)).join(delimiter),

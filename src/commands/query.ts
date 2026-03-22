@@ -8,14 +8,15 @@ import { resolveClient, resolveDb } from "./helpers.js";
 import type { OutputFormat } from "../types.js";
 
 export function queryCommand(): Command {
-  const cmd = new Command("query")
-    .description("Run queries against a database")
-    .addHelpText("after", `
+  const cmd = new Command("query").description("Run queries against a database").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli query run --sql "SELECT * FROM users LIMIT 10" --db 1
   $ metabase-cli query run --sql "SELECT count(*) FROM orders" --db 1 --format json
   $ metabase-cli query run --sql "SELECT * FROM products" --db 1 --format csv
-  $ metabase-cli query run --sql "SELECT * FROM users" --db 1 --columns "id,email" --limit 5`);
+  $ metabase-cli query run --sql "SELECT * FROM users" --db 1 --columns "id,email" --limit 5`,
+  );
 
   cmd
     .command("run")
@@ -26,13 +27,16 @@ Examples:
     .option("--output <file>", "Write output to a file (format auto-detected from extension)")
     .option("--columns <cols>", "Comma-separated column names to display")
     .option("--limit <n>", "Limit number of rows", parseInt)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli query run --sql "SELECT * FROM users LIMIT 10" --db 1
   $ metabase-cli query run --sql "SELECT count(*) FROM orders" --db 1 --format json
   $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --format csv > products.csv
   $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --output products.xlsx
-  $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --output results.csv`)
+  $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --output results.csv`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new DatasetApi(client);
@@ -60,7 +64,9 @@ Examples:
       if (outputPath) {
         if (format === "xlsx" || format === "csv" || format === "json") {
           if (opts.columns) {
-            console.warn("Warning: --columns is not supported with native export (csv/json/xlsx). All columns will be exported.");
+            console.warn(
+              "Warning: --columns is not supported with native export (csv/json/xlsx). All columns will be exported.",
+            );
           }
           const datasetQuery = {
             type: "native" as const,
@@ -98,9 +104,7 @@ Examples:
       }
 
       const columns = opts.columns?.split(",");
-      console.log(
-        formatDatasetResponse(result, format as OutputFormat, columns),
-      );
+      console.log(formatDatasetResponse(result, format as OutputFormat, columns));
       console.log(`\n${result.row_count} row(s) returned.`);
     });
 

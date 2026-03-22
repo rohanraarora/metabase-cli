@@ -10,11 +10,14 @@ export function searchCommand(): Command {
     .option("--models <models>", "Filter by type: card, dashboard, collection, table, database")
     .option("--limit <n>", "Max results", parseInt)
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli search "revenue"
   $ metabase-cli search "users" --models card,dashboard
-  $ metabase-cli search "orders" --limit 5 --format json`)
+  $ metabase-cli search "orders" --limit 5 --format json`,
+    )
     .action(async (query: string, opts) => {
       const client = await resolveClient();
       const api = new SearchApi(client);

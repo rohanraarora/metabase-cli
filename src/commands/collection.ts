@@ -5,23 +5,27 @@ import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient, isUnsafe } from "./helpers.js";
 
 export function collectionCommand(): Command {
-  const cmd = new Command("collection")
-    .description("Manage collections")
-    .addHelpText("after", `
+  const cmd = new Command("collection").description("Manage collections").addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli collection list
   $ metabase-cli collection tree
   $ metabase-cli collection items 5 --models card
-  $ metabase-cli collection create --name "Analytics" --parent 3`);
+  $ metabase-cli collection create --name "Analytics" --parent 3`,
+  );
 
   cmd
     .command("list")
     .description("List all collections")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli collection list
-  $ metabase-cli collection list --format json`)
+  $ metabase-cli collection list --format json`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CollectionApi(client);
@@ -44,9 +48,12 @@ Examples:
   cmd
     .command("tree")
     .description("Show collection hierarchy")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
-  $ metabase-cli collection tree`)
+  $ metabase-cli collection tree`,
+    )
     .action(async () => {
       const client = await resolveClient();
       const api = new CollectionApi(client);
@@ -57,10 +64,13 @@ Examples:
   cmd
     .command("show <id>")
     .description("Show collection details (use 'root' for root collection)")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli collection show 5
-  $ metabase-cli collection show root`)
+  $ metabase-cli collection show root`,
+    )
     .action(async (id: string) => {
       const client = await resolveClient();
       const api = new CollectionApi(client);
@@ -73,11 +83,14 @@ Examples:
     .description("List items in a collection (use 'root' for root)")
     .option("--models <models>", "Filter by type: card, dashboard, collection")
     .option("--format <format>", "Output format: table, json", "table")
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli collection items 5
   $ metabase-cli collection items root --models card,dashboard
-  $ metabase-cli collection items 5 --models card --format json`)
+  $ metabase-cli collection items 5 --models card --format json`,
+    )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new CollectionApi(client);
@@ -109,10 +122,13 @@ Examples:
     .requiredOption("--name <name>", "Collection name")
     .option("--description <desc>", "Description")
     .option("--parent <id>", "Parent collection ID", parseInt)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli collection create --name "Analytics"
-  $ metabase-cli collection create --name "Q1 Reports" --parent 3 --description "First quarter"`)
+  $ metabase-cli collection create --name "Q1 Reports" --parent 3 --description "First quarter"`,
+    )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CollectionApi(client);
@@ -131,12 +147,15 @@ Examples:
     .option("--description <desc>", "New description")
     .option("--parent <id>", "Move to parent collection", parseInt)
     .option("--unsafe", "Bypass safe mode", false)
-    .addHelpText("after", `
+    .addHelpText(
+      "after",
+      `
 Safe mode blocks updates to collections you didn't create. Use --unsafe to bypass.
 
 Examples:
   $ metabase-cli collection update 5 --name "New Name"
-  $ metabase-cli collection update 5 --parent 3 --unsafe`)
+  $ metabase-cli collection update 5 --parent 3 --unsafe`,
+    )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
       const api = new CollectionApi(client);

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve } from "node:path";
 import { Command } from "commander";
 import { profileCommand } from "../src/commands/profile.js";
 import { queryCommand } from "../src/commands/query.js";
@@ -9,6 +9,12 @@ import { collectionCommand } from "../src/commands/collection.js";
 import { databaseCommand, tableCommand, fieldCommand } from "../src/commands/database.js";
 import { searchCommand } from "../src/commands/search.js";
 import { snippetCommand } from "../src/commands/snippet.js";
+import { alertCommand } from "../src/commands/alert.js";
+import { revisionCommand } from "../src/commands/revision.js";
+import { activityCommand } from "../src/commands/activity.js";
+import { timelineCommand } from "../src/commands/timeline.js";
+import { segmentCommand } from "../src/commands/segment.js";
+import { notificationCommand } from "../src/commands/notification.js";
 import { MetabaseClient } from "../src/client.js";
 import { getActiveProfile, getProfile, updateProfile } from "../src/config/store.js";
 import type { Profile } from "../src/types.js";
@@ -43,16 +49,28 @@ program.addCommand(tableCommand());
 program.addCommand(fieldCommand());
 program.addCommand(searchCommand());
 program.addCommand(snippetCommand());
+program.addCommand(alertCommand());
+program.addCommand(revisionCommand());
+program.addCommand(activityCommand());
+program.addCommand(timelineCommand());
+program.addCommand(segmentCommand());
+program.addCommand(notificationCommand());
 
 function resolveProfile(): Profile {
   const name = process.env._METABASE_CLI_PROFILE;
   if (name) {
     const p = getProfile(name);
-    if (!p) { console.error(`Error: Profile "${name}" does not exist.`); process.exit(1); }
+    if (!p) {
+      console.error(`Error: Profile "${name}" does not exist.`);
+      process.exit(1);
+    }
     return p;
   }
   const p = getActiveProfile();
-  if (!p) { console.error("No active profile. Run: metabase-cli profile add <name>"); process.exit(1); }
+  if (!p) {
+    console.error("No active profile. Run: metabase-cli profile add <name>");
+    process.exit(1);
+  }
   return p;
 }
 
@@ -60,9 +78,12 @@ function resolveProfile(): Profile {
 program
   .command("login")
   .description("Login to the active profile")
-  .addHelpText("after", `
+  .addHelpText(
+    "after",
+    `
 Examples:
-  $ metabase-cli login`)
+  $ metabase-cli login`,
+  )
   .action(async () => {
     const profile = resolveProfile();
     if (profile.auth.method !== "session") {
@@ -73,7 +94,9 @@ Examples:
     await client.login();
     console.log(`Logged in to ${profile.domain} as ${profile.auth.email}.`);
     if (client.getProfile().user) {
-      console.log(`User: ${client.getProfile().user!.first_name} ${client.getProfile().user!.last_name} (ID: ${client.getProfile().user!.id})`);
+      console.log(
+        `User: ${client.getProfile().user!.first_name} ${client.getProfile().user!.last_name} (ID: ${client.getProfile().user!.id})`,
+      );
     }
   });
 
@@ -81,9 +104,12 @@ Examples:
 program
   .command("logout")
   .description("Logout from the active profile")
-  .addHelpText("after", `
+  .addHelpText(
+    "after",
+    `
 Examples:
-  $ metabase-cli logout`)
+  $ metabase-cli logout`,
+  )
   .action(async () => {
     const profile = resolveProfile();
     const client = new MetabaseClient(profile);
@@ -96,10 +122,13 @@ program
   .command("whoami")
   .description("Show current user info")
   .option("--refresh", "Refresh cached user info from server")
-  .addHelpText("after", `
+  .addHelpText(
+    "after",
+    `
 Examples:
   $ metabase-cli whoami
-  $ metabase-cli whoami --refresh`)
+  $ metabase-cli whoami --refresh`,
+  )
   .action(async (opts) => {
     const profile = resolveProfile();
 

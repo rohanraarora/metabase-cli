@@ -21,8 +21,6 @@ export class DatabaseApi {
   }
 
   async tablesInSchema(id: number, schema: string): Promise<Table[]> {
-    return this.client.get<Table[]>(
-      `/api/database/${id}/schema/${encodeURIComponent(schema)}`,
-    );
+    return this.client.get<Table[]>(`/api/database/${id}/schema/${encodeURIComponent(schema)}`);
   }
 }
