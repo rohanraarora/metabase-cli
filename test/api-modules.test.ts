@@ -456,4 +456,77 @@ describe("DashboardApi", () => {
     expect(opts.method).toBe("PUT");
     expect(JSON.parse(opts.body)).toEqual({ dashcards });
   });
+
+  it("update(1, { parameters }) → PUT /api/dashboard/1 with parameters in body", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new DashboardApi(client);
+    globalThis.fetch = mockFetch({ id: 1 });
+
+    const parameters = [
+      { id: "abc123", type: "date/single", name: "Start Date", slug: "start_date", default: "2026-01-01" },
+    ];
+    await api.update(1, { parameters });
+
+    const [url, opts] = (globalThis.fetch as any).mock.calls[0];
+    expect(url).toBe("https://metabase.test.com/api/dashboard/1");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ parameters });
+  });
+
+  it("update(1, { parameters, dashcards }) → PUT with both parameters and dashcards with mappings", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new DashboardApi(client);
+    globalThis.fetch = mockFetch({ id: 1 });
+
+    const parameters = [
+      { id: "p1", type: "date/single", name: "Start Date", slug: "start_date" },
+    ];
+    const dashcards = [
+      {
+        id: 100,
+        card_id: 42,
+        row: 0,
+        col: 0,
+        size_x: 6,
+        size_y: 4,
+        parameter_mappings: [
+          { parameter_id: "p1", card_id: 42, target: ["variable", ["template-tag", "start_date"]] },
+        ],
+      },
+    ];
+    await api.update(1, { parameters, dashcards });
+
+    const [, opts] = (globalThis.fetch as any).mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.parameters).toEqual(parameters);
+    expect(body.dashcards[0].parameter_mappings).toEqual([
+      { parameter_id: "p1", card_id: 42, target: ["variable", ["template-tag", "start_date"]] },
+    ]);
+  });
+
+  it("update(1, { parameters }) with values_source_config → sends source config in body", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new DashboardApi(client);
+    globalThis.fetch = mockFetch({ id: 1 });
+
+    const parameters = [
+      {
+        id: "p2",
+        type: "string/=",
+        name: "Channel",
+        slug: "channel",
+        values_source_type: "card",
+        values_source_config: {
+          card_id: 99,
+          value_field: ["field", "channel", { "base-type": "type/Text" }],
+        },
+      },
+    ];
+    await api.update(1, { parameters });
+
+    const [, opts] = (globalThis.fetch as any).mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.parameters[0].values_source_type).toBe("card");
+    expect(body.parameters[0].values_source_config.card_id).toBe(99);
+  });
 });

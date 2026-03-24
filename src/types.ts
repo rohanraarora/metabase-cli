@@ -109,9 +109,22 @@ export interface DashCard {
   col: number;
   size_x: number;
   size_y: number;
-  parameter_mappings: unknown[];
+  parameter_mappings: ParameterMapping[];
   visualization_settings: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+export interface ParameterMapping {
+  parameter_id: string;
+  card_id: number;
+  target: unknown[];
+}
+
+export interface ValuesSourceConfig {
+  card_id?: number;
+  value_field?: unknown[];
+  label_field?: unknown[];
+  values?: unknown[];
 }
 
 export interface Parameter {
@@ -120,6 +133,8 @@ export interface Parameter {
   type: string;
   slug: string;
   default?: unknown;
+  values_source_type?: "card" | "static-list" | null;
+  values_source_config?: ValuesSourceConfig;
   [key: string]: unknown;
 }
 
