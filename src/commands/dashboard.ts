@@ -337,6 +337,7 @@ Examples:
       if (opts.default !== undefined) param.default = opts.default;
 
       if (opts.sourceCard) {
+        param.values_query_type = "list";
         param.values_source_type = "card";
         param.values_source_config = { card_id: opts.sourceCard };
         if (opts.sourceValueField) {
@@ -514,7 +515,11 @@ Examples:
       const newParams: Parameter[] = (config.parameters || []).map((p: Record<string, unknown>) => {
         const id = (p.id as string) || generateParamId();
         slugToId[p.slug as string] = id;
-        return { ...p, id };
+        const param = { ...p, id };
+        if (param.values_source_type && !param.values_query_type) {
+          param.values_query_type = "list";
+        }
+        return param;
       });
 
       const allParams = [...dashboard.parameters, ...newParams];
