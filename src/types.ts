@@ -133,6 +133,7 @@ export interface Parameter {
   type: string;
   slug: string;
   default?: unknown;
+  values_query_type?: "list" | "search" | "none" | null;
   values_source_type?: "card" | "static-list" | null;
   values_source_config?: ValuesSourceConfig;
   [key: string]: unknown;
