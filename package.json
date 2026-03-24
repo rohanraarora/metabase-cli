@@ -7,7 +7,7 @@
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "bin": {
-    "metabase-cli": "./dist/metabase.js"
+    "metabase-cli": "./dist/metabase.cjs"
   },
   "files": [
     "dist"
