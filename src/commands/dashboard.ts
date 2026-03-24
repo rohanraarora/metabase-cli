@@ -381,9 +381,7 @@ Examples:
       const updatedParams = dashboard.parameters.filter((p) => p.id !== paramMatch.id);
       const updatedCards = dashboard.dashcards.map((dc) => ({
         ...serializeDashcard(dc),
-        parameter_mappings: dc.parameter_mappings.filter(
-          (m) => m.parameter_id !== paramMatch.id,
-        ),
+        parameter_mappings: dc.parameter_mappings.filter((m) => m.parameter_id !== paramMatch.id),
       }));
 
       await api.update(dashId, { parameters: updatedParams, dashcards: updatedCards });
@@ -469,9 +467,7 @@ Examples:
         if (dc.card_id !== opts.card) return serialized;
         return {
           ...serialized,
-          parameter_mappings: dc.parameter_mappings.filter(
-            (m) => m.parameter_id !== opts.param,
-          ),
+          parameter_mappings: dc.parameter_mappings.filter((m) => m.parameter_id !== opts.param),
         };
       });
 
@@ -515,13 +511,11 @@ Examples:
 
       // Build parameters with generated IDs
       const slugToId: Record<string, string> = {};
-      const newParams: Parameter[] = (config.parameters || []).map(
-        (p: Record<string, unknown>) => {
-          const id = (p.id as string) || generateParamId();
-          slugToId[p.slug as string] = id;
-          return { ...p, id };
-        },
-      );
+      const newParams: Parameter[] = (config.parameters || []).map((p: Record<string, unknown>) => {
+        const id = (p.id as string) || generateParamId();
+        slugToId[p.slug as string] = id;
+        return { ...p, id };
+      });
 
       const allParams = [...dashboard.parameters, ...newParams];
 

@@ -463,7 +463,13 @@ describe("DashboardApi", () => {
     globalThis.fetch = mockFetch({ id: 1 });
 
     const parameters = [
-      { id: "abc123", type: "date/single", name: "Start Date", slug: "start_date", default: "2026-01-01" },
+      {
+        id: "abc123",
+        type: "date/single",
+        name: "Start Date",
+        slug: "start_date",
+        default: "2026-01-01",
+      },
     ];
     await api.update(1, { parameters });
 
@@ -478,9 +484,7 @@ describe("DashboardApi", () => {
     const api = new DashboardApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
 
-    const parameters = [
-      { id: "p1", type: "date/single", name: "Start Date", slug: "start_date" },
-    ];
+    const parameters = [{ id: "p1", type: "date/single", name: "Start Date", slug: "start_date" }];
     const dashcards = [
       {
         id: 100,
