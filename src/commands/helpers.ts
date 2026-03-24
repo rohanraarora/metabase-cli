@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { MetabaseClient } from "../client.js";
 import { getActiveProfile, getProfile } from "../config/store.js";
@@ -39,6 +40,30 @@ export function resolveDb(optDb: number | undefined): number {
     "Error: --db is required (or set a default with: metabase-cli profile set-default-db <id>)",
   );
   process.exit(1);
+}
+
+/**
+ * Resolve input from either an inline value or a file path.
+ * Errors if both or neither are provided.
+ */
+export function resolveInput(
+  inline: string | undefined,
+  filePath: string | undefined,
+  inlineFlag: string,
+  fileFlag: string,
+): string {
+  if (inline && filePath) {
+    console.error(`Error: --${inlineFlag} and --${fileFlag} are mutually exclusive.`);
+    process.exit(1);
+  }
+  if (!inline && !filePath) {
+    console.error(`Error: either --${inlineFlag} or --${fileFlag} is required.`);
+    process.exit(1);
+  }
+  if (filePath) {
+    return readFileSync(filePath, "utf-8").trim();
+  }
+  return inline!;
 }
 
 export function isUnsafe(cmd: Command, localFlag?: boolean): boolean {

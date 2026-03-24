@@ -4,7 +4,7 @@ import { resolve, extname } from "node:path";
 import { DatasetApi } from "../api/dataset.js";
 import { formatDatasetResponse } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
-import { resolveClient, resolveDb } from "./helpers.js";
+import { resolveClient, resolveDb, resolveInput } from "./helpers.js";
 import type { OutputFormat } from "../types.js";
 
 export function queryCommand(): Command {
@@ -21,7 +21,8 @@ Examples:
   cmd
     .command("run")
     .description("Execute a SQL query")
-    .requiredOption("--sql <sql>", "SQL query to execute")
+    .option("--sql <sql>", "SQL query to execute")
+    .option("--sql-file <path>", "Read SQL query from a file")
     .option("--db <id>", "Database ID (uses profile default if not set)", parseInt)
     .option("--format <format>", "Output format: table, json, csv, tsv, xlsx", "table")
     .option("--output <file>", "Write output to a file (format auto-detected from extension)")
@@ -35,13 +36,14 @@ Examples:
   $ metabase-cli query run --sql "SELECT count(*) FROM orders" --db 1 --format json
   $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --format csv > products.csv
   $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --output products.xlsx
+  $ metabase-cli query run --sql-file query.sql --db 1
   $ metabase-cli query run --sql "SELECT * FROM products" --db 2 --output results.csv`,
     )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new DatasetApi(client);
 
-      let sql = opts.sql;
+      let sql = resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file");
       if (opts.limit) {
         sql = `SELECT * FROM (${sql}) _q LIMIT ${opts.limit}`;
       }

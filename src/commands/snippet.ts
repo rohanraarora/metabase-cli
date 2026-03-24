@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { SnippetApi } from "../api/snippet.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient, isUnsafe } from "./helpers.js";
+import { resolveClient, isUnsafe, resolveInput } from "./helpers.js";
 
 export function snippetCommand(): Command {
   const cmd = new Command("snippet").description("Manage SQL snippets").addHelpText(
@@ -70,7 +70,8 @@ Examples:
     .command("create")
     .description("Create a new snippet")
     .requiredOption("--name <name>", "Snippet name")
-    .requiredOption("--content <sql>", "SQL content")
+    .option("--content <sql>", "SQL content")
+    .option("--content-file <path>", "Read SQL content from a file")
     .option("--description <desc>", "Description")
     .option("--collection <id>", "Collection ID", parseInt)
     .addHelpText(
@@ -78,14 +79,15 @@ Examples:
       `
 Examples:
   $ metabase-cli snippet create --name "Active filter" --content "WHERE active = true"
-  $ metabase-cli snippet create --name "Date range" --content "WHERE created_at > NOW() - INTERVAL '30 days'"`,
+  $ metabase-cli snippet create --name "Date range" --content-file date-filter.sql`,
     )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new SnippetApi(client);
+      const content = resolveInput(opts.content, opts.contentFile, "content", "content-file");
       const snippet = await api.create({
         name: opts.name,
-        content: opts.content,
+        content,
         description: opts.description,
         collection_id: opts.collection,
       });
@@ -97,6 +99,7 @@ Examples:
     .description("Update a snippet (safe mode by default)")
     .option("--name <name>", "New name")
     .option("--content <sql>", "New SQL content")
+    .option("--content-file <path>", "Read new SQL content from a file")
     .option("--description <desc>", "New description")
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText(
@@ -105,7 +108,7 @@ Examples:
 Safe mode blocks updates to snippets you didn't create. Use --unsafe to bypass.
 
 Examples:
-  $ metabase-cli snippet update 3 --content "WHERE active = true AND deleted_at IS NULL"
+  $ metabase-cli snippet update 3 --content-file updated-filter.sql
   $ metabase-cli snippet update 3 --name "New Name" --unsafe`,
     )
     .action(async function (this: Command, id: string, opts) {
@@ -117,7 +120,9 @@ Examples:
       await guard.guard("snippet", snippetId, "update", async () => {
         const updates: Record<string, unknown> = {};
         if (opts.name) updates.name = opts.name;
-        if (opts.content) updates.content = opts.content;
+        if (opts.content || opts.contentFile) {
+          updates.content = resolveInput(opts.content, opts.contentFile, "content", "content-file");
+        }
         if (opts.description) updates.description = opts.description;
         const snippet = await api.update(snippetId, updates);
         console.log(`Snippet #${snippet.id} "${snippet.name}" updated.`);

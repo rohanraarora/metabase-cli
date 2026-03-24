@@ -72,6 +72,9 @@ metabase-cli whoami --refresh    # Re-fetch user info from server
 # Run SQL against a database
 metabase-cli query run --sql "SELECT * FROM orders LIMIT 5" --db 1
 
+# Run SQL from a file
+metabase-cli query run --sql-file query.sql --db 1
+
 # Output as JSON
 metabase-cli query run --sql "SELECT count(*) FROM users" --db 1 --format json
 
@@ -106,6 +109,7 @@ metabase-cli question run 42 --format csv
 
 # Run with parameters
 metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'
+metabase-cli question run 42 --params-file params.json
 
 # Export a saved question to file
 metabase-cli question run 42 --output results.csv
@@ -114,17 +118,19 @@ metabase-cli question run 42 --output results.xlsx
 # Create a question
 metabase-cli question create --name "Active Users" --sql "SELECT * FROM users WHERE active = true" --db 1 --collection 5
 
+# Create from a SQL file
+metabase-cli question create --name "Revenue" --sql-file revenue.sql --db 1
+
 # Create with display type and visualization settings
 metabase-cli question create --name "Revenue Trend" --sql "SELECT date, sum(amount) FROM orders GROUP BY date" --db 1 --display line --viz '{"graph.show_values":true}'
 
-# Create with parameterized query (template tags)
-metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --db 1 \
-  --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'
+# Create with settings from files
+metabase-cli question create --name "Revenue Trend" --sql-file trend.sql --db 1 --display line --viz-file viz.json --template-tags-file tags.json
 
 # Update a question (safe mode blocks if you're not the creator)
 metabase-cli question update 42 --name "New Name"
-metabase-cli question update 42 --display line --viz '{"graph.show_values":true}'
-metabase-cli question update 42 --sql "SELECT ..." --unsafe   # bypass safe mode
+metabase-cli question update 42 --sql-file updated-query.sql --unsafe
+metabase-cli question update 42 --display line --viz-file viz.json
 
 # Delete a question
 metabase-cli question delete 42
@@ -150,7 +156,52 @@ metabase-cli dashboard add-card 7 --card 42
 metabase-cli dashboard add-card 7 --card 42 --width 12 --height 8
 metabase-cli dashboard add-card 7 --card 42 --row 0 --col 6
 metabase-cli dashboard remove-card 7 --card 42
+
+# List filters/parameters on a dashboard
+metabase-cli dashboard list-params 7
+
+# Add a date filter
+metabase-cli dashboard add-param 7 --type "date/single" --name "Start Date" --slug start_date --default "2026-01-01"
+
+# Add a dropdown filter sourced from a question
+metabase-cli dashboard add-param 7 --type "string/=" --name "Channel" --slug channel \
+  --source-card 99 --source-value-field '["field", "channel", {"base-type": "type/Text"}]'
+
+# Map a filter to a card's template tag
+metabase-cli dashboard map-param 7 --param f1a2b3c4 --card 42 \
+  --target '["variable", ["template-tag", "start_date"]]'
+
+# Remove a mapping or parameter
+metabase-cli dashboard unmap-param 7 --param f1a2b3c4 --card 42
+metabase-cli dashboard remove-param 7 --param start_date
+
+# Bulk setup all filters and mappings from a JSON file
+metabase-cli dashboard setup-filters 7 --from-json filters.json
 ```
+
+<details>
+<summary>Example filters.json for setup-filters</summary>
+
+```json
+{
+  "parameters": [
+    { "type": "date/single", "name": "Start Date", "slug": "start_date", "default": "2026-01-01" },
+    { "type": "date/single", "name": "End Date", "slug": "end_date" },
+    {
+      "type": "string/=", "name": "Channel", "slug": "channel",
+      "values_source_type": "card",
+      "values_source_config": { "card_id": 99, "value_field": ["field", "channel", {"base-type": "type/Text"}] }
+    }
+  ],
+  "mappings": [
+    { "param_slug": "start_date", "card_id": 42, "target": ["variable", ["template-tag", "start_date"]] },
+    { "param_slug": "end_date", "card_id": 42, "target": ["variable", ["template-tag", "end_date"]] },
+    { "param_slug": "channel", "card_id": 42, "target": ["variable", ["template-tag", "channel_filter"]] }
+  ]
+}
+```
+
+</details>
 
 ### Collections
 
@@ -197,8 +248,9 @@ metabase-cli search "users" --limit 5 --format json
 metabase-cli snippet list
 metabase-cli snippet show 3
 metabase-cli snippet create --name "Active filter" --content "WHERE active = true"
+metabase-cli snippet create --name "Date range" --content-file date-filter.sql
 metabase-cli snippet update 3 --content "WHERE active = true AND deleted_at IS NULL"
-metabase-cli snippet update 3 --content "..." --unsafe
+metabase-cli snippet update 3 --content-file updated-filter.sql --unsafe
 ```
 
 ### Alerts
@@ -253,7 +305,9 @@ metabase-cli timeline delete-event 5
 metabase-cli segment list
 metabase-cli segment show 1
 metabase-cli segment create --name "Big Orders" --table 5 --definition '{"filter":[">",[" field",10],100]}'
+metabase-cli segment create --name "Big Orders" --table 5 --definition-file segment.json
 metabase-cli segment update 1 --name "Large Orders" --revision-message "Renamed"
+metabase-cli segment update 1 --definition-file updated-segment.json
 metabase-cli segment delete 1
 ```
 
@@ -266,6 +320,21 @@ metabase-cli notification create --card 42 --channel-type email --recipients "1,
 metabase-cli notification update 1 --active false
 metabase-cli notification send 1
 ```
+
+## File Input
+
+Commands that accept inline SQL or JSON also support reading from files. This is useful for complex multi-line queries or JSON configurations. Each `--flag` has a corresponding `--flag-file` alternative:
+
+| Flag | File Flag | Commands |
+|------|-----------|----------|
+| `--sql` | `--sql-file` | `query run`, `question create`, `question update` |
+| `--viz` | `--viz-file` | `question create`, `question update` |
+| `--template-tags` | `--template-tags-file` | `question create` |
+| `--params` | `--params-file` | `question run` |
+| `--content` | `--content-file` | `snippet create`, `snippet update` |
+| `--definition` | `--definition-file` | `segment create`, `segment update` |
+
+The inline and file flags are mutually exclusive — provide one or the other, not both.
 
 ## Safe Mode
 
