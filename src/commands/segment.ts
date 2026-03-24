@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { SegmentApi } from "../api/segment.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient } from "./helpers.js";
+import { resolveClient, resolveInput } from "./helpers.js";
 
 export function segmentCommand(): Command {
   const cmd = new Command("segment").description("Manage segments").addHelpText(
@@ -67,21 +67,29 @@ Examples:
     .description("Create a new segment")
     .requiredOption("--name <name>", "Segment name")
     .requiredOption("--table <id>", "Table ID", parseInt)
-    .requiredOption("--definition <json>", "Segment definition as JSON string")
+    .option("--definition <json>", "Segment definition as JSON string")
+    .option("--definition-file <path>", "Read segment definition from a JSON file")
     .option("--description <description>", "Segment description")
     .addHelpText(
       "after",
       `
 Examples:
-  $ metabase-cli segment create --name "Big Orders" --table 5 --definition '{"filter":[">",[" field",10],100]}'`,
+  $ metabase-cli segment create --name "Big Orders" --table 5 --definition '{"filter":[">",[" field",10],100]}'
+  $ metabase-cli segment create --name "Big Orders" --table 5 --definition-file segment.json`,
     )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new SegmentApi(client);
+      const defRaw = resolveInput(
+        opts.definition,
+        opts.definitionFile,
+        "definition",
+        "definition-file",
+      );
       const segment = await api.create({
         name: opts.name,
         table_id: opts.table,
-        definition: JSON.parse(opts.definition),
+        definition: JSON.parse(defRaw),
         description: opts.description,
       });
       console.log(`Segment #${(segment as any).id} created.`);
@@ -92,13 +100,15 @@ Examples:
     .description("Update a segment")
     .option("--name <name>", "Segment name")
     .option("--definition <json>", "Segment definition as JSON string")
+    .option("--definition-file <path>", "Read segment definition from a JSON file")
     .option("--description <description>", "Segment description")
     .option("--revision-message <message>", "Revision message")
     .addHelpText(
       "after",
       `
 Examples:
-  $ metabase-cli segment update 1 --name "Large Orders" --revision-message "Renamed"`,
+  $ metabase-cli segment update 1 --name "Large Orders" --revision-message "Renamed"
+  $ metabase-cli segment update 1 --definition-file updated-segment.json`,
     )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
@@ -108,7 +118,15 @@ Examples:
       const updates: Record<string, unknown> = {};
       if (opts.name !== undefined) updates.name = opts.name;
       if (opts.description !== undefined) updates.description = opts.description;
-      if (opts.definition !== undefined) updates.definition = JSON.parse(opts.definition);
+      if (opts.definition !== undefined || opts.definitionFile !== undefined) {
+        const raw = resolveInput(
+          opts.definition,
+          opts.definitionFile,
+          "definition",
+          "definition-file",
+        );
+        updates.definition = JSON.parse(raw);
+      }
       if (opts.revisionMessage !== undefined) updates.revision_message = opts.revisionMessage;
 
       const segment = await api.update(segmentId, updates);
