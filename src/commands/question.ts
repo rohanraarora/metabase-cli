@@ -153,9 +153,10 @@ Examples:
 
       // Parse user-provided param values
       let paramsInput: Record<string, unknown> = {};
-      const paramsRaw = opts.params || opts.paramsFile
-        ? resolveInput(opts.params, opts.paramsFile, "params", "params-file")
-        : null;
+      const paramsRaw =
+        opts.params || opts.paramsFile
+          ? resolveInput(opts.params, opts.paramsFile, "params", "params-file")
+          : null;
       if (paramsRaw) {
         try {
           paramsInput = JSON.parse(paramsRaw);
@@ -272,7 +273,12 @@ Examples:
       let templateTags: Record<string, unknown> = {};
       if (opts.templateTags || opts.templateTagsFile) {
         try {
-          const raw = resolveInput(opts.templateTags, opts.templateTagsFile, "template-tags", "template-tags-file");
+          const raw = resolveInput(
+            opts.templateTags,
+            opts.templateTagsFile,
+            "template-tags",
+            "template-tags-file",
+          );
           templateTags = JSON.parse(raw);
         } catch {
           console.error("Error: template tags must be valid JSON");

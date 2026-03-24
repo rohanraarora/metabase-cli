@@ -74,12 +74,8 @@ describe("resolveInput", () => {
     });
     const mockError = vi.spyOn(console, "error").mockImplementation(() => {});
 
-    expect(() => resolveInput("SELECT 1", "/tmp/f.sql", "sql", "sql-file")).toThrow(
-      "process.exit",
-    );
-    expect(mockError).toHaveBeenCalledWith(
-      "Error: --sql and --sql-file are mutually exclusive.",
-    );
+    expect(() => resolveInput("SELECT 1", "/tmp/f.sql", "sql", "sql-file")).toThrow("process.exit");
+    expect(mockError).toHaveBeenCalledWith("Error: --sql and --sql-file are mutually exclusive.");
 
     mockExit.mockRestore();
     mockError.mockRestore();
@@ -92,17 +88,13 @@ describe("resolveInput", () => {
     const mockError = vi.spyOn(console, "error").mockImplementation(() => {});
 
     expect(() => resolveInput(undefined, undefined, "sql", "sql-file")).toThrow("process.exit");
-    expect(mockError).toHaveBeenCalledWith(
-      "Error: either --sql or --sql-file is required.",
-    );
+    expect(mockError).toHaveBeenCalledWith("Error: either --sql or --sql-file is required.");
 
     mockExit.mockRestore();
     mockError.mockRestore();
   });
 
   it("throws when file does not exist", () => {
-    expect(() =>
-      resolveInput(undefined, "/nonexistent/path.sql", "sql", "sql-file"),
-    ).toThrow();
+    expect(() => resolveInput(undefined, "/nonexistent/path.sql", "sql", "sql-file")).toThrow();
   });
 });

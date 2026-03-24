@@ -80,7 +80,12 @@ Examples:
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new SegmentApi(client);
-      const defRaw = resolveInput(opts.definition, opts.definitionFile, "definition", "definition-file");
+      const defRaw = resolveInput(
+        opts.definition,
+        opts.definitionFile,
+        "definition",
+        "definition-file",
+      );
       const segment = await api.create({
         name: opts.name,
         table_id: opts.table,
@@ -114,7 +119,12 @@ Examples:
       if (opts.name !== undefined) updates.name = opts.name;
       if (opts.description !== undefined) updates.description = opts.description;
       if (opts.definition !== undefined || opts.definitionFile !== undefined) {
-        const raw = resolveInput(opts.definition, opts.definitionFile, "definition", "definition-file");
+        const raw = resolveInput(
+          opts.definition,
+          opts.definitionFile,
+          "definition",
+          "definition-file",
+        );
         updates.definition = JSON.parse(raw);
       }
       if (opts.revisionMessage !== undefined) updates.revision_message = opts.revisionMessage;
