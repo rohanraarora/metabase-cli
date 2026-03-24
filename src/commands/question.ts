@@ -5,7 +5,7 @@ import { CardApi } from "../api/card.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
-import { resolveClient, resolveDb, isUnsafe } from "./helpers.js";
+import { resolveClient, resolveDb, isUnsafe, resolveInput } from "./helpers.js";
 import type { OutputFormat } from "../types.js";
 
 const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
@@ -118,6 +118,7 @@ Examples:
     .option("--output <file>", "Write output to a file (format auto-detected from extension)")
     .option("--columns <cols>", "Comma-separated column names")
     .option("--params <json>", 'Parameter values as JSON, e.g. \'{"start_date":"2025-01-01"}\'')
+    .option("--params-file <path>", "Read parameter values from a JSON file")
     .addHelpText(
       "after",
       `
@@ -126,6 +127,7 @@ Examples:
   $ metabase-cli question run 42 --format csv
   $ metabase-cli question run 42 --columns "id,name,email"
   $ metabase-cli question run 42 --params '{"start_date":"2025-01-01"}'
+  $ metabase-cli question run 42 --params-file params.json
   $ metabase-cli question run 42 --output results.xlsx
   $ metabase-cli question run 42 --output results.csv`,
     )
@@ -151,11 +153,14 @@ Examples:
 
       // Parse user-provided param values
       let paramsInput: Record<string, unknown> = {};
-      if (opts.params) {
+      const paramsRaw = opts.params || opts.paramsFile
+        ? resolveInput(opts.params, opts.paramsFile, "params", "params-file")
+        : null;
+      if (paramsRaw) {
         try {
-          paramsInput = JSON.parse(opts.params);
+          paramsInput = JSON.parse(paramsRaw);
         } catch {
-          console.error("Error: --params must be valid JSON");
+          console.error("Error: params must be valid JSON");
           process.exit(1);
         }
       }
@@ -225,13 +230,16 @@ Examples:
     .command("create")
     .description("Create a new question")
     .requiredOption("--name <name>", "Question name")
-    .requiredOption("--sql <sql>", "SQL query")
+    .option("--sql <sql>", "SQL query")
+    .option("--sql-file <path>", "Read SQL query from a file")
     .option("--db <id>", "Database ID (uses profile default if not set)", parseInt)
     .option("--description <desc>", "Description")
     .option("--collection <id>", "Collection ID", parseInt)
     .option("--display <type>", "Display type (table, line, bar, pie, scalar, etc.)", "table")
     .option("--viz <json>", "Visualization settings as JSON string")
+    .option("--viz-file <path>", "Read visualization settings from a JSON file")
     .option("--template-tags <json>", "Template tags as JSON string for parameterized queries")
+    .option("--template-tags-file <path>", "Read template tags from a JSON file")
     .addHelpText(
       "after",
       `
@@ -239,32 +247,35 @@ Display types: table, line, bar, area, pie, scalar, row, scatter, funnel, map, p
 
 Examples:
   $ metabase-cli question create --name "Active Users" --sql "SELECT * FROM users WHERE active = true" --db 1
-  $ metabase-cli question create --name "Revenue" --sql "SELECT sum(amount) FROM orders" --db 1 --collection 5
-  $ metabase-cli question create --name "Revenue Trend" --sql "SELECT date, sum(amount) FROM orders GROUP BY date" --display line
-  $ metabase-cli question create --name "Revenue Trend" --sql "..." --display line --viz '{"graph.show_values":true}'
-  $ metabase-cli question create --name "Users Since" --sql "SELECT * FROM users WHERE created_at >= {{start_date}}" --template-tags '{"start_date":{"type":"date","name":"start_date","display-name":"Start Date","default":"2024-01-01"}}'`,
+  $ metabase-cli question create --name "Revenue" --sql-file revenue.sql --db 1 --collection 5
+  $ metabase-cli question create --name "Revenue Trend" --sql-file trend.sql --display line --viz-file viz.json
+  $ metabase-cli question create --name "Users Since" --sql-file query.sql --template-tags-file tags.json --db 1`,
     )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new CardApi(client);
       const db = resolveDb(opts.db);
 
+      const sql = resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file");
+
       let vizSettings: Record<string, unknown> = {};
-      if (opts.viz) {
+      if (opts.viz || opts.vizFile) {
         try {
-          vizSettings = JSON.parse(opts.viz);
+          const raw = resolveInput(opts.viz, opts.vizFile, "viz", "viz-file");
+          vizSettings = JSON.parse(raw);
         } catch {
-          console.error("Error: --viz must be valid JSON");
+          console.error("Error: viz settings must be valid JSON");
           process.exit(1);
         }
       }
 
       let templateTags: Record<string, unknown> = {};
-      if (opts.templateTags) {
+      if (opts.templateTags || opts.templateTagsFile) {
         try {
-          templateTags = JSON.parse(opts.templateTags);
+          const raw = resolveInput(opts.templateTags, opts.templateTagsFile, "template-tags", "template-tags-file");
+          templateTags = JSON.parse(raw);
         } catch {
-          console.error("Error: --template-tags must be valid JSON");
+          console.error("Error: template tags must be valid JSON");
           process.exit(1);
         }
       }
@@ -290,7 +301,7 @@ Examples:
           type: "native",
           database: db,
           native: {
-            query: opts.sql,
+            query: sql,
             "template-tags": Object.keys(templateTags).length > 0 ? templateTags : undefined,
           },
         },
@@ -305,8 +316,10 @@ Examples:
     .option("--description <desc>", "New description")
     .option("--collection <id>", "Move to collection", parseInt)
     .option("--sql <sql>", "New SQL query")
+    .option("--sql-file <path>", "Read new SQL query from a file")
     .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
     .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
+    .option("--viz-file <path>", "Read visualization settings from a JSON file")
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText(
       "after",
@@ -315,9 +328,9 @@ Safe mode blocks updates to questions you didn't create. Use --unsafe to bypass.
 
 Examples:
   $ metabase-cli question update 42 --name "New Name"
-  $ metabase-cli question update 42 --sql "SELECT * FROM users WHERE active" --unsafe
+  $ metabase-cli question update 42 --sql-file updated-query.sql --unsafe
   $ metabase-cli question update 42 --display line
-  $ metabase-cli question update 42 --viz '{"graph.show_values":true,"graph.dimensions":["date"]}'`,
+  $ metabase-cli question update 42 --viz-file viz.json`,
     )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
@@ -331,12 +344,13 @@ Examples:
         if (opts.description) updates.description = opts.description;
         if (opts.collection !== undefined) updates.collection_id = opts.collection;
         if (opts.display) updates.display = opts.display;
-        if (opts.viz) {
+        if (opts.viz || opts.vizFile) {
           let vizSettings: Record<string, unknown>;
           try {
-            vizSettings = JSON.parse(opts.viz);
+            const raw = resolveInput(opts.viz, opts.vizFile, "viz", "viz-file");
+            vizSettings = JSON.parse(raw);
           } catch {
-            console.error("Error: --viz must be valid JSON");
+            console.error("Error: viz settings must be valid JSON");
             process.exit(1);
           }
           // Merge with existing viz settings
@@ -346,13 +360,14 @@ Examples:
             ...vizSettings,
           };
         }
-        if (opts.sql) {
+        if (opts.sql || opts.sqlFile) {
+          const sql = resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file");
           const existing = await api.get(cardId);
           updates.dataset_query = {
             ...existing.dataset_query,
             native: {
               ...existing.dataset_query.native,
-              query: opts.sql,
+              query: sql,
             },
           };
         }
