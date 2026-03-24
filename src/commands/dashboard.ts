@@ -515,11 +515,11 @@ Examples:
       const newParams: Parameter[] = (config.parameters || []).map((p: Record<string, unknown>) => {
         const id = (p.id as string) || generateParamId();
         slugToId[p.slug as string] = id;
-        const param = { ...p, id };
+        const param: Record<string, unknown> = { ...p, id };
         if (param.values_source_type && !param.values_query_type) {
           param.values_query_type = "list";
         }
-        return param;
+        return param as Parameter;
       });
 
       const allParams = [...dashboard.parameters, ...newParams];
