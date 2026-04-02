@@ -1,6 +1,6 @@
 {
   "name": "metabase-cli",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "type": "module",
   "description": "Headless CLI interface for Metabase instances",
   "main": "./dist/index.js",
