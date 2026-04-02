@@ -12,7 +12,8 @@ vi.mock("../src/config/store.js", () => ({
   getProfile: vi.fn(),
 }));
 
-import { resolveInput } from "../src/commands/helpers.js";
+import { resolveInput, resolveProfile } from "../src/commands/helpers.js";
+import { getActiveProfile, getProfile } from "../src/config/store.js";
 
 describe("resolveInput", () => {
   let tmpDir: string;
@@ -96,5 +97,114 @@ describe("resolveInput", () => {
 
   it("throws when file does not exist", () => {
     expect(() => resolveInput(undefined, "/nonexistent/path.sql", "sql", "sql-file")).toThrow();
+  });
+});
+
+describe("resolveProfile", () => {
+  const ENV_BACKUP: Record<string, string | undefined> = {};
+
+  function setEnv(vars: Record<string, string | undefined>) {
+    for (const [key, val] of Object.entries(vars)) {
+      ENV_BACKUP[key] = process.env[key];
+      if (val === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = val;
+      }
+    }
+  }
+
+  afterEach(() => {
+    for (const [key, val] of Object.entries(ENV_BACKUP)) {
+      if (val === undefined) {
+        delete process.env[key];
+      } else {
+        process.env[key] = val;
+      }
+    }
+    vi.restoreAllMocks();
+  });
+
+  it("returns ephemeral profile when both env vars are set", () => {
+    setEnv({
+      _METABASE_CLI_PROFILE: undefined,
+      METABASE_CLI_AUTH_KEY: "mb_test_key",
+      METABASE_CLI_DOMAIN: "https://mb.example.com",
+    });
+
+    const profile = resolveProfile();
+    expect(profile).toEqual({
+      name: "__env__",
+      domain: "https://mb.example.com",
+      auth: { method: "api-key", apiKey: "mb_test_key" },
+    });
+  });
+
+  it("--profile flag takes precedence over env vars", () => {
+    const savedProfile = {
+      name: "prod",
+      domain: "https://prod.example.com",
+      auth: { method: "api-key" as const, apiKey: "mb_prod" },
+    };
+    vi.mocked(getProfile).mockReturnValue(savedProfile);
+
+    setEnv({
+      _METABASE_CLI_PROFILE: "prod",
+      METABASE_CLI_AUTH_KEY: "mb_env_key",
+      METABASE_CLI_DOMAIN: "https://env.example.com",
+    });
+
+    const profile = resolveProfile();
+    expect(profile).toEqual(savedProfile);
+  });
+
+  it("warns when only METABASE_CLI_AUTH_KEY is set", () => {
+    const mockWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getActiveProfile).mockReturnValue(null);
+
+    setEnv({
+      _METABASE_CLI_PROFILE: undefined,
+      METABASE_CLI_AUTH_KEY: "mb_key",
+      METABASE_CLI_DOMAIN: undefined,
+    });
+
+    resolveProfile();
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("METABASE_CLI_DOMAIN is missing"),
+    );
+  });
+
+  it("warns when only METABASE_CLI_DOMAIN is set", () => {
+    const mockWarn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.mocked(getActiveProfile).mockReturnValue(null);
+
+    setEnv({
+      _METABASE_CLI_PROFILE: undefined,
+      METABASE_CLI_AUTH_KEY: undefined,
+      METABASE_CLI_DOMAIN: "https://mb.example.com",
+    });
+
+    resolveProfile();
+    expect(mockWarn).toHaveBeenCalledWith(
+      expect.stringContaining("METABASE_CLI_AUTH_KEY is missing"),
+    );
+  });
+
+  it("falls back to active profile when no env vars are set", () => {
+    const activeProfile = {
+      name: "default",
+      domain: "https://default.example.com",
+      auth: { method: "api-key" as const, apiKey: "mb_default" },
+    };
+    vi.mocked(getActiveProfile).mockReturnValue(activeProfile);
+
+    setEnv({
+      _METABASE_CLI_PROFILE: undefined,
+      METABASE_CLI_AUTH_KEY: undefined,
+      METABASE_CLI_DOMAIN: undefined,
+    });
+
+    const profile = resolveProfile();
+    expect(profile).toEqual(activeProfile);
   });
 });

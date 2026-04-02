@@ -150,10 +150,12 @@ export class MetabaseClient {
     const session = (await res.json()) as SessionResponse;
     this.sessionToken = session.id;
 
-    // Cache session token in profile
-    updateProfile(this.profile.name, {
-      auth: { ...auth, sessionToken: session.id },
-    });
+    // Cache session token in profile (skip for ephemeral env profiles)
+    if (this.profile.name !== "__env__") {
+      updateProfile(this.profile.name, {
+        auth: { ...auth, sessionToken: session.id },
+      });
+    }
 
     // Fetch and cache user info
     const user = await this.get<User>("/api/user/current");
@@ -164,7 +166,9 @@ export class MetabaseClient {
       last_name: user.last_name,
       is_superuser: user.is_superuser,
     };
-    updateProfile(this.profile.name, { user: cachedUser });
+    if (this.profile.name !== "__env__") {
+      updateProfile(this.profile.name, { user: cachedUser });
+    }
     this.profile.user = cachedUser;
 
     return session;
@@ -173,7 +177,7 @@ export class MetabaseClient {
   async logout(): Promise<void> {
     await this.delete("/api/session");
     this.sessionToken = undefined;
-    if (this.profile.auth.method === "session") {
+    if (this.profile.auth.method === "session" && this.profile.name !== "__env__") {
       updateProfile(this.profile.name, {
         auth: { ...this.profile.auth, sessionToken: undefined },
       });

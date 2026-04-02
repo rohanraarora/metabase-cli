@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import { Command } from "commander";
 import { MetabaseClient } from "../client.js";
 import { getActiveProfile, getProfile } from "../config/store.js";
+import type { Profile } from "../types.js";
 
 /**
- * Resolve the target profile, checking for a global --profile flag
- * via the METABASE_PROFILE env var (set by the root command hook).
+ * Resolve the target profile, checking (in order):
+ * 1. --profile flag (via _METABASE_CLI_PROFILE env var)
+ * 2. METABASE_CLI_AUTH_KEY + METABASE_CLI_DOMAIN env vars (ephemeral profile)
+ * 3. Active profile from config file
  */
-function resolveProfile() {
+export function resolveProfile(): Profile | null {
   const profileName = process.env._METABASE_CLI_PROFILE;
   if (profileName) {
     const profile = getProfile(profileName);
@@ -17,6 +20,26 @@ function resolveProfile() {
     }
     return profile;
   }
+
+  const envKey = process.env.METABASE_CLI_AUTH_KEY;
+  const envDomain = process.env.METABASE_CLI_DOMAIN;
+  if (envKey && envDomain) {
+    return {
+      name: "__env__",
+      domain: envDomain,
+      auth: { method: "api-key", apiKey: envKey },
+    };
+  }
+  if (envKey && !envDomain) {
+    console.warn(
+      "Warning: METABASE_CLI_AUTH_KEY is set but METABASE_CLI_DOMAIN is missing. Falling back to saved profile.",
+    );
+  } else if (!envKey && envDomain) {
+    console.warn(
+      "Warning: METABASE_CLI_DOMAIN is set but METABASE_CLI_AUTH_KEY is missing. Falling back to saved profile.",
+    );
+  }
+
   return getActiveProfile();
 }
 

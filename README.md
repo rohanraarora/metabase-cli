@@ -55,6 +55,20 @@ metabase-cli profile current
 metabase-cli profile remove staging
 ```
 
+### Environment Variables
+
+For CI/CD pipelines or quick usage without creating a profile, set both environment variables:
+
+```bash
+export METABASE_CLI_AUTH_KEY=mb_xxxxx
+export METABASE_CLI_DOMAIN=https://metabase.example.com
+
+metabase-cli whoami
+metabase-cli query run --sql "SELECT 1" --db 1
+```
+
+When both are set, an ephemeral API-key profile is used automatically — no `profile add` needed. The `--profile` flag still takes precedence over environment variables.
+
 ## Commands
 
 ### Authentication

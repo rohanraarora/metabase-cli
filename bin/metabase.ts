@@ -16,7 +16,8 @@ import { timelineCommand } from "../src/commands/timeline.js";
 import { segmentCommand } from "../src/commands/segment.js";
 import { notificationCommand } from "../src/commands/notification.js";
 import { MetabaseClient } from "../src/client.js";
-import { getActiveProfile, getProfile, updateProfile } from "../src/config/store.js";
+import { updateProfile } from "../src/config/store.js";
+import { resolveProfile as resolveProfileBase } from "../src/commands/helpers.js";
 import type { Profile } from "../src/types.js";
 import { handleError } from "../src/utils/errors.js";
 import { formatJson } from "../src/utils/output.js";
@@ -57,16 +58,7 @@ program.addCommand(segmentCommand());
 program.addCommand(notificationCommand());
 
 function resolveProfile(): Profile {
-  const name = process.env._METABASE_CLI_PROFILE;
-  if (name) {
-    const p = getProfile(name);
-    if (!p) {
-      console.error(`Error: Profile "${name}" does not exist.`);
-      process.exit(1);
-    }
-    return p;
-  }
-  const p = getActiveProfile();
+  const p = resolveProfileBase();
   if (!p) {
     console.error("No active profile. Run: metabase-cli profile add <name>");
     process.exit(1);
@@ -145,15 +137,17 @@ Examples:
     const client = new MetabaseClient(profile);
     await client.ensureAuthenticated();
     const user = await client.get<any>("/api/user/current");
-    updateProfile(profile.name, {
-      user: {
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        is_superuser: user.is_superuser,
-      },
-    });
+    if (profile.name !== "__env__") {
+      updateProfile(profile.name, {
+        user: {
+          id: user.id,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          is_superuser: user.is_superuser,
+        },
+      });
+    }
     console.log(formatJson(user));
   });
 
