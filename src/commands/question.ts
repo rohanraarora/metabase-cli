@@ -401,17 +401,18 @@ Examples:
           // Metabase v0.59+ uses stages[0].native instead of native
           const usesStages = !dq.native && Array.isArray(dq.stages) && dq.stages.length > 0;
 
-          if (usesStages) {
-            const existingNative = dq.stages[0].native || {};
+          if (usesStages && dq.stages) {
+            const stage0 = dq.stages[0];
+            const existingNative = stage0.native || ({} as NonNullable<typeof stage0.native>);
             const updatedNative = { ...existingNative };
             if (sql !== undefined) updatedNative.query = sql;
             if (templateTags) updatedNative["template-tags"] = templateTags;
             updates.dataset_query = {
               ...dq,
-              stages: [{ ...dq.stages[0], native: updatedNative }, ...dq.stages.slice(1)],
+              stages: [{ ...stage0, native: updatedNative }, ...dq.stages.slice(1)],
             };
           } else {
-            const existingNative = dq.native || {};
+            const existingNative = dq.native || ({} as NonNullable<typeof dq.native>);
             const updatedNative = { ...existingNative };
             if (sql !== undefined) updatedNative.query = sql;
             if (templateTags) updatedNative["template-tags"] = templateTags;
