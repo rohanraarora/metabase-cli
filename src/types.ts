@@ -167,6 +167,12 @@ export interface DatasetQuery {
     "template-tags"?: Record<string, unknown>;
   };
   query?: Record<string, unknown>;
+  stages?: (Record<string, unknown> & {
+    native?: {
+      query: string;
+      "template-tags"?: Record<string, unknown>;
+    };
+  })[];
 }
 
 export interface DatasetResponse {
