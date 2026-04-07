@@ -353,16 +353,17 @@ describe("SegmentApi", () => {
     expect(JSON.parse(opts.body)).toEqual(params);
   });
 
-  it("delete(1) → DELETE /api/segment/1?revision_message=Deleted+via+CLI", async () => {
+  it("delete(1) → PUT /api/segment/1 with archived flag", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new SegmentApi(client);
-    globalThis.fetch = mockFetchVoid();
+    globalThis.fetch = mockFetch({});
 
     await api.delete(1);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/segment/1?revision_message=Deleted+via+CLI");
-    expect(opts.method).toBe("DELETE");
+    expect(url).toBe("https://metabase.test.com/api/segment/1");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ archived: true, revision_message: "Archived via CLI" });
   });
 });
 
