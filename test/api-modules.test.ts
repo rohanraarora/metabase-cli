@@ -50,7 +50,7 @@ afterEach(() => {
 // ─── AlertApi ────────────────────────────────────────────────────────────────
 
 describe("AlertApi", () => {
-  it("list() → GET /api/alert", async () => {
+  it("list() → GET /api/notification with payload_type query param", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch([{ id: 1 }]);
@@ -58,12 +58,12 @@ describe("AlertApi", () => {
     const result = await api.list();
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/alert");
+    expect(url).toBe("https://metabase.test.com/api/notification?payload_type=notification%2Fcard");
     expect(opts.method).toBe("GET");
     expect(result).toEqual([{ id: 1 }]);
   });
 
-  it("get(1) → GET /api/alert/1", async () => {
+  it("get(1) → GET /api/notification/1", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
@@ -71,11 +71,11 @@ describe("AlertApi", () => {
     await api.get(1);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/alert/1");
+    expect(url).toBe("https://metabase.test.com/api/notification/1");
     expect(opts.method).toBe("GET");
   });
 
-  it("create(params) → POST /api/alert", async () => {
+  it("create(params) → POST /api/notification with translated body", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
@@ -89,12 +89,21 @@ describe("AlertApi", () => {
     await api.create(params);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/alert");
+    expect(url).toBe("https://metabase.test.com/api/notification");
     expect(opts.method).toBe("POST");
-    expect(JSON.parse(opts.body)).toEqual(params);
+    expect(JSON.parse(opts.body)).toEqual({
+      payload_type: "notification/card",
+      payload: {
+        card_id: 10,
+        alert_condition: "rows",
+        alert_first_only: false,
+      },
+      handlers: [{ channel_type: "email" }],
+      active: true,
+    });
   });
 
-  it("update(1, params) → PUT /api/alert/1", async () => {
+  it("update(1, params) → PUT /api/notification/1 with translated body", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
@@ -103,21 +112,25 @@ describe("AlertApi", () => {
     await api.update(1, params);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/alert/1");
+    expect(url).toBe("https://metabase.test.com/api/notification/1");
     expect(opts.method).toBe("PUT");
-    expect(JSON.parse(opts.body)).toEqual(params);
+    expect(JSON.parse(opts.body)).toEqual({
+      payload_type: "notification/card",
+      payload: { alert_first_only: true },
+    });
   });
 
-  it("delete(1) → DELETE /api/alert/1", async () => {
+  it("delete(1) → PUT /api/notification/1 with { active: false }", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
-    globalThis.fetch = mockFetchVoid();
+    globalThis.fetch = mockFetch({});
 
     await api.delete(1);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/alert/1");
-    expect(opts.method).toBe("DELETE");
+    expect(url).toBe("https://metabase.test.com/api/notification/1");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ active: false });
   });
 });
 
@@ -353,16 +366,17 @@ describe("SegmentApi", () => {
     expect(JSON.parse(opts.body)).toEqual(params);
   });
 
-  it("delete(1) → DELETE /api/segment/1?revision_message=Deleted+via+CLI", async () => {
+  it("delete(1) → PUT /api/segment/1 with archived flag", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new SegmentApi(client);
-    globalThis.fetch = mockFetchVoid();
+    globalThis.fetch = mockFetch({});
 
     await api.delete(1);
 
     const [url, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(url).toBe("https://metabase.test.com/api/segment/1?revision_message=Deleted+via+CLI");
-    expect(opts.method).toBe("DELETE");
+    expect(url).toBe("https://metabase.test.com/api/segment/1");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ archived: true, revision_message: "Archived via CLI" });
   });
 });
 

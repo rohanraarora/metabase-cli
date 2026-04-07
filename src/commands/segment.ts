@@ -135,7 +135,7 @@ Examples:
 
   cmd
     .command("delete <id>")
-    .description("Delete a segment")
+    .description("Archive a segment (soft delete)")
     .addHelpText(
       "after",
       `
@@ -147,7 +147,7 @@ Examples:
       const api = new SegmentApi(client);
       const segmentId = parseInt(id);
       await api.delete(segmentId);
-      console.log(`Segment #${segmentId} deleted.`);
+      console.log(`Segment #${segmentId} archived.`);
     });
 
   return cmd;

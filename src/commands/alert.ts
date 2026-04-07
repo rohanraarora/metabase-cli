@@ -4,16 +4,20 @@ import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient } from "./helpers.js";
 
 export function alertCommand(): Command {
-  const cmd = new Command("alert").description("Manage alerts").addHelpText(
-    "after",
-    `
+  const cmd = new Command("alert")
+    .description(
+      "Manage alerts. Note: Alerts use the Notification API internally. For full notification control, use 'metabase-cli notification'.",
+    )
+    .addHelpText(
+      "after",
+      `
 Examples:
   $ metabase-cli alert list
   $ metabase-cli alert show 3
   $ metabase-cli alert create --card 42 --condition rows --first-only
   $ metabase-cli alert update 3 --condition goal --above-goal
   $ metabase-cli alert delete 3`,
-  );
+    );
 
   cmd
     .command("list")
@@ -38,9 +42,9 @@ Examples:
 
       const rows = (alerts as any[]).map((a) => ({
         id: a.id,
-        card_name: a.card?.name ?? a.name ?? "",
-        alert_condition: a.alert_condition,
-        alert_first_only: a.alert_first_only,
+        card_name: a.payload?.card?.name ?? a.payload?.card_id ?? "",
+        alert_condition: a.payload?.alert_condition ?? "",
+        alert_first_only: a.payload?.alert_first_only ?? "",
         creator: a.creator
           ? `${a.creator.first_name} ${a.creator.last_name}`
           : (a.creator_id ?? ""),
@@ -169,7 +173,7 @@ Examples:
       const api = new AlertApi(client);
       const alertId = parseInt(id);
       await api.delete(alertId);
-      console.log(`Alert #${alertId} deleted.`);
+      console.log(`Alert #${alertId} deleted (archived).`);
     });
 
   return cmd;

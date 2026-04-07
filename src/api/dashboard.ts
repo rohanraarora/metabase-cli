@@ -21,7 +21,32 @@ export class DashboardApi {
   constructor(private client: MetabaseClient) {}
 
   async list(params?: Record<string, string>): Promise<Dashboard[]> {
-    return this.client.get<Dashboard[]>("/api/dashboard", params);
+    // Try the dedicated dashboard endpoint first (deprecated in newer Metabase)
+    try {
+      const res = await this.client.requestRaw("GET", "/api/dashboard");
+      if (res.status === 404) {
+        return this.listViaSearch();
+      }
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`${res.status} ${res.statusText}: ${err}`);
+      }
+      return (await res.json()) as Dashboard[];
+    } catch (e: unknown) {
+      // If the error is from our 404 handling, rethrow
+      if (e instanceof Error && e.message.includes("404")) {
+        return this.listViaSearch();
+      }
+      throw e;
+    }
+  }
+
+  private async listViaSearch(): Promise<Dashboard[]> {
+    const res = await this.client.get<{ data: Dashboard[] }>("/api/search", {
+      models: "dashboard",
+      limit: "2000",
+    });
+    return res.data;
   }
 
   async get(id: number): Promise<Dashboard> {

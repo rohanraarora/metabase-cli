@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-04-07
+
+### Added
+
+- `doctor` command: runs 8 diagnostic checks against your Metabase instance (connectivity, version detection, API compatibility)
+- `--template-tags` and `--template-tags-file` flags on `question update` (previously only available on `create`)
+
+### Fixed
+
+- `question update --sql` no longer corrupts questions on Metabase v0.59+ — now detects the `stages` format vs legacy `native` format
+- Migrated alert commands from deprecated `/api/alert` to `/api/notification` endpoints (backward-compatible CLI interface)
+- `segment delete` now uses `PUT` with `archived: true` instead of deprecated `DELETE` endpoint
+- `dashboard list` falls back to search API if `/api/dashboard` returns 404 (endpoint deprecated in recent Metabase versions)
+- Security: updated transitive deps `vite` (7.3.1 → 7.3.2) and `picomatch` (4.0.3 → 4.0.4), fixing 4 Dependabot alerts
+
+### Changed
+
+- `DatasetQuery` type now includes optional `stages` property for Metabase v0.59+ compatibility
+- Alert delete now archives (soft delete) instead of hard delete, matching notification API behavior
+
 ## [0.5.0] - 2026-04-02
 
 ### Added
@@ -104,6 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
+[0.6.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/rohanraarora/metabase-cli/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.3.1...v0.4.0

@@ -326,6 +326,8 @@ Examples:
     .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
     .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
     .option("--viz-file <path>", "Read visualization settings from a JSON file")
+    .option("--template-tags <json>", "Template tags as JSON string for parameterized queries")
+    .option("--template-tags-file <path>", "Read template tags from a JSON file")
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText(
       "after",
@@ -336,7 +338,8 @@ Examples:
   $ metabase-cli question update 42 --name "New Name"
   $ metabase-cli question update 42 --sql-file updated-query.sql --unsafe
   $ metabase-cli question update 42 --display line
-  $ metabase-cli question update 42 --viz-file viz.json`,
+  $ metabase-cli question update 42 --viz-file viz.json
+  $ metabase-cli question update 42 --sql-file query.sql --template-tags-file tags.json`,
     )
     .action(async function (this: Command, id: string, opts) {
       const client = await resolveClient();
@@ -366,16 +369,81 @@ Examples:
             ...vizSettings,
           };
         }
-        if (opts.sql || opts.sqlFile) {
-          const sql = resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file");
+        let templateTags: Record<string, unknown> | undefined;
+        if (opts.templateTags || opts.templateTagsFile) {
+          try {
+            const raw = resolveInput(
+              opts.templateTags,
+              opts.templateTagsFile,
+              "template-tags",
+              "template-tags-file",
+            );
+            templateTags = JSON.parse(raw);
+          } catch {
+            console.error("Error: template tags must be valid JSON");
+            process.exit(1);
+          }
+          for (const tag of Object.values(templateTags!) as any[]) {
+            if (!tag.id) {
+              tag.id = crypto.randomUUID();
+            }
+          }
+        }
+
+        if (opts.sql || opts.sqlFile || templateTags) {
+          const sql =
+            opts.sql || opts.sqlFile
+              ? resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file")
+              : undefined;
           const existing = await api.get(cardId);
-          updates.dataset_query = {
-            ...existing.dataset_query,
-            native: {
-              ...existing.dataset_query.native,
-              query: sql,
-            },
-          };
+          const dq = existing.dataset_query;
+
+          // Metabase v0.59+ uses stages[0].native instead of native
+          const usesStages = !dq.native && Array.isArray(dq.stages) && dq.stages.length > 0;
+
+          if (usesStages && dq.stages) {
+            const stage0 = dq.stages[0];
+            // v0.59+: native is a raw SQL string; only use object form if template-tags needed
+            let updatedNative: string | Record<string, unknown>;
+            if (templateTags) {
+              // Need object form for template-tags
+              const base: Record<string, unknown> =
+                typeof stage0.native === "string"
+                  ? { query: stage0.native }
+                  : stage0.native
+                    ? { ...(stage0.native as Record<string, unknown>) }
+                    : {};
+              if (sql !== undefined) base.query = sql;
+              base["template-tags"] = templateTags;
+              updatedNative = base;
+            } else {
+              // Keep as plain string — v0.59+ expects (string? sql)
+              updatedNative = sql ?? (typeof stage0.native === "string" ? stage0.native : "");
+            }
+            updates.dataset_query = {
+              ...dq,
+              stages: [{ ...stage0, native: updatedNative }, ...dq.stages.slice(1)],
+            };
+          } else {
+            // Legacy format: native is always an object with {query, template-tags}
+            const rawNative = dq.native;
+            const existingNative: Record<string, unknown> =
+              typeof rawNative === "string"
+                ? { query: rawNative }
+                : rawNative
+                  ? { ...rawNative }
+                  : {};
+            if (sql !== undefined) existingNative.query = sql;
+            if (templateTags) existingNative["template-tags"] = templateTags;
+            updates.dataset_query = {
+              ...dq,
+              native: existingNative,
+            };
+          }
+
+          if (templateTags) {
+            updates.parameters = buildParametersFromTags(templateTags);
+          }
         }
         const card = await api.update(cardId, updates);
         console.log(`Question #${card.id} "${card.name}" updated.`);

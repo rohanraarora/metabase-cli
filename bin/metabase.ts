@@ -15,6 +15,7 @@ import { activityCommand } from "../src/commands/activity.js";
 import { timelineCommand } from "../src/commands/timeline.js";
 import { segmentCommand } from "../src/commands/segment.js";
 import { notificationCommand } from "../src/commands/notification.js";
+import { doctorCommand } from "../src/commands/doctor.js";
 import { MetabaseClient } from "../src/client.js";
 import { updateProfile } from "../src/config/store.js";
 import { resolveProfile as resolveProfileBase } from "../src/commands/helpers.js";
@@ -56,6 +57,7 @@ program.addCommand(activityCommand());
 program.addCommand(timelineCommand());
 program.addCommand(segmentCommand());
 program.addCommand(notificationCommand());
+program.addCommand(doctorCommand());
 
 function resolveProfile(): Profile {
   const p = resolveProfileBase();
