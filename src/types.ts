@@ -168,10 +168,12 @@ export interface DatasetQuery {
   };
   query?: Record<string, unknown>;
   stages?: (Record<string, unknown> & {
-    native?: {
-      query: string;
-      "template-tags"?: Record<string, unknown>;
-    };
+    native?:
+      | string
+      | {
+          query: string;
+          "template-tags"?: Record<string, unknown>;
+        };
   })[];
 }
 

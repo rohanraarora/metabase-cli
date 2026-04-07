@@ -403,22 +403,41 @@ Examples:
 
           if (usesStages && dq.stages) {
             const stage0 = dq.stages[0];
-            const existingNative = stage0.native || ({} as NonNullable<typeof stage0.native>);
-            const updatedNative = { ...existingNative };
-            if (sql !== undefined) updatedNative.query = sql;
-            if (templateTags) updatedNative["template-tags"] = templateTags;
+            // v0.59+: native is a raw SQL string; only use object form if template-tags needed
+            let updatedNative: string | Record<string, unknown>;
+            if (templateTags) {
+              // Need object form for template-tags
+              const base: Record<string, unknown> =
+                typeof stage0.native === "string"
+                  ? { query: stage0.native }
+                  : stage0.native
+                    ? { ...(stage0.native as Record<string, unknown>) }
+                    : {};
+              if (sql !== undefined) base.query = sql;
+              base["template-tags"] = templateTags;
+              updatedNative = base;
+            } else {
+              // Keep as plain string — v0.59+ expects (string? sql)
+              updatedNative = sql ?? (typeof stage0.native === "string" ? stage0.native : "");
+            }
             updates.dataset_query = {
               ...dq,
               stages: [{ ...stage0, native: updatedNative }, ...dq.stages.slice(1)],
             };
           } else {
-            const existingNative = dq.native || ({} as NonNullable<typeof dq.native>);
-            const updatedNative = { ...existingNative };
-            if (sql !== undefined) updatedNative.query = sql;
-            if (templateTags) updatedNative["template-tags"] = templateTags;
+            // Legacy format: native is always an object with {query, template-tags}
+            const rawNative = dq.native;
+            const existingNative: Record<string, unknown> =
+              typeof rawNative === "string"
+                ? { query: rawNative }
+                : rawNative
+                  ? { ...rawNative }
+                  : {};
+            if (sql !== undefined) existingNative.query = sql;
+            if (templateTags) existingNative["template-tags"] = templateTags;
             updates.dataset_query = {
               ...dq,
-              native: updatedNative,
+              native: existingNative,
             };
           }
 
