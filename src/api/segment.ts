@@ -12,6 +12,7 @@ export interface UpdateSegmentParams {
   description?: string;
   definition?: { filter: unknown[] };
   revision_message?: string;
+  archived?: boolean;
 }
 
 export class SegmentApi {
@@ -34,6 +35,9 @@ export class SegmentApi {
   }
 
   async delete(id: number): Promise<void> {
-    await this.client.delete(`/api/segment/${id}?revision_message=Deleted+via+CLI`);
+    await this.client.put(`/api/segment/${id}`, {
+      archived: true,
+      revision_message: "Archived via CLI",
+    });
   }
 }
