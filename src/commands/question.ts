@@ -6,13 +6,63 @@ import { SafetyGuard } from "../safety/guard.js";
 import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
 import { resolveClient, resolveDb, isUnsafe, resolveInput } from "./helpers.js";
-import type { OutputFormat } from "../types.js";
+import type { DatasetQuery, OutputFormat } from "../types.js";
 
 const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
   date: "date/single",
   text: "string/=",
   number: "number/=",
 };
+
+// Rebuild a card's `dataset_query` for an update, applying an optional new SQL
+// string and/or an optional new template-tags map.
+//
+// v0.59+ cards store `stages[0].native` as a plain SQL string and keep
+// `template-tags` at the stage level alongside it. Wrapping `native` as an
+// object (legacy `{query, template-tags}` shape) under stages corrupts the
+// card: Metabase saves the extra object but the query processor fails to
+// substitute parameters, leaving the card unrunnable.
+export function buildDatasetQueryUpdate(
+  existing: DatasetQuery,
+  sql: string | undefined,
+  templateTags: Record<string, unknown> | undefined,
+): DatasetQuery {
+  const usesStages =
+    !existing.native && Array.isArray(existing.stages) && existing.stages.length > 0;
+
+  if (usesStages && existing.stages) {
+    const stage0 = existing.stages[0];
+    // Unwrap any nested-object `native` left behind by prior buggy updates so
+    // we emit a clean string form.
+    const existingQuery =
+      typeof stage0.native === "string"
+        ? stage0.native
+        : ((stage0.native as { query?: string } | undefined)?.query ?? "");
+
+    const nextStage: Record<string, unknown> = {
+      ...stage0,
+      native: sql ?? existingQuery,
+    };
+    if (templateTags) {
+      nextStage["template-tags"] = templateTags;
+    }
+    return {
+      ...existing,
+      stages: [nextStage, ...existing.stages.slice(1)],
+    };
+  }
+
+  // Pre-v0.59 legacy shape: native is an object {query, template-tags}.
+  const rawNative = existing.native;
+  const nextNative: Record<string, unknown> =
+    typeof rawNative === "string" ? { query: rawNative } : rawNative ? { ...rawNative } : {};
+  if (sql !== undefined) nextNative.query = sql;
+  if (templateTags) nextNative["template-tags"] = templateTags;
+  return {
+    ...existing,
+    native: nextNative as DatasetQuery["native"],
+  };
+}
 
 function buildParametersFromTags(tags: Record<string, any>): unknown[] {
   if (Object.keys(tags).length === 0) return [];
@@ -396,50 +446,11 @@ Examples:
               ? resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file")
               : undefined;
           const existing = await api.get(cardId);
-          const dq = existing.dataset_query;
-
-          // Metabase v0.59+ uses stages[0].native instead of native
-          const usesStages = !dq.native && Array.isArray(dq.stages) && dq.stages.length > 0;
-
-          if (usesStages && dq.stages) {
-            const stage0 = dq.stages[0];
-            // v0.59+: native is a raw SQL string; only use object form if template-tags needed
-            let updatedNative: string | Record<string, unknown>;
-            if (templateTags) {
-              // Need object form for template-tags
-              const base: Record<string, unknown> =
-                typeof stage0.native === "string"
-                  ? { query: stage0.native }
-                  : stage0.native
-                    ? { ...(stage0.native as Record<string, unknown>) }
-                    : {};
-              if (sql !== undefined) base.query = sql;
-              base["template-tags"] = templateTags;
-              updatedNative = base;
-            } else {
-              // Keep as plain string — v0.59+ expects (string? sql)
-              updatedNative = sql ?? (typeof stage0.native === "string" ? stage0.native : "");
-            }
-            updates.dataset_query = {
-              ...dq,
-              stages: [{ ...stage0, native: updatedNative }, ...dq.stages.slice(1)],
-            };
-          } else {
-            // Legacy format: native is always an object with {query, template-tags}
-            const rawNative = dq.native;
-            const existingNative: Record<string, unknown> =
-              typeof rawNative === "string"
-                ? { query: rawNative }
-                : rawNative
-                  ? { ...rawNative }
-                  : {};
-            if (sql !== undefined) existingNative.query = sql;
-            if (templateTags) existingNative["template-tags"] = templateTags;
-            updates.dataset_query = {
-              ...dq,
-              native: existingNative,
-            };
-          }
+          updates.dataset_query = buildDatasetQueryUpdate(
+            existing.dataset_query,
+            sql,
+            templateTags,
+          );
 
           if (templateTags) {
             updates.parameters = buildParametersFromTags(templateTags);
