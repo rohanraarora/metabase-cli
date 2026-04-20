@@ -1,5 +1,6 @@
 import type { Profile, SessionAuth, SessionResponse, User, CachedUser } from "./types.js";
 import { updateProfile } from "./config/store.js";
+import { ApiError } from "./utils/errors.js";
 
 export class MetabaseClient {
   private domain: string;
@@ -58,7 +59,7 @@ export class MetabaseClient {
       });
       if (!retryRes.ok) {
         const err = await retryRes.text();
-        throw new Error(`${retryRes.status} ${retryRes.statusText}: ${err}`);
+        throw new ApiError(retryRes.status, retryRes.statusText, err);
       }
       const retryText = await retryRes.text();
       if (!retryText) return undefined as T;
@@ -67,7 +68,7 @@ export class MetabaseClient {
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(`${res.status} ${res.statusText}: ${err}`);
+      throw new ApiError(res.status, res.statusText, err);
     }
 
     const text = await res.text();
@@ -144,7 +145,7 @@ export class MetabaseClient {
 
     if (!res.ok) {
       const err = await res.text();
-      throw new Error(`Login failed: ${res.status} ${err}`);
+      throw new ApiError(res.status, res.statusText, err);
     }
 
     const session = (await res.json()) as SessionResponse;

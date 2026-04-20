@@ -5,6 +5,7 @@ import { DatasetApi } from "../api/dataset.js";
 import { formatDatasetResponse } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
 import { resolveClient, resolveDb, resolveInput } from "./helpers.js";
+import { formatInBandError } from "../utils/errors.js";
 import type { OutputFormat } from "../types.js";
 
 export function queryCommand(): Command {
@@ -82,7 +83,7 @@ Examples:
           // table or tsv format: query normally and format locally
           const result = await api.queryNative(db, sql);
           if (result.status === "failed") {
-            console.error("Query failed:", (result as any).error);
+            console.error(`Query failed: ${formatInBandError((result as any).error)}`);
             process.exit(1);
           }
           const columns = opts.columns?.split(",");

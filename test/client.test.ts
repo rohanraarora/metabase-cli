@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Profile } from "../src/types.js";
 
 // Mock the config store to avoid filesystem operations
@@ -317,10 +317,11 @@ describe("MetabaseClient", () => {
       globalThis.fetch = vi.fn().mockResolvedValueOnce({
         ok: false,
         status: 401,
+        statusText: "Unauthorized",
         text: () => Promise.resolve("invalid credentials"),
       } as Response);
 
-      await expect(client.login()).rejects.toThrow("Login failed: 401 invalid credentials");
+      await expect(client.login()).rejects.toThrow("401 Unauthorized: invalid credentials");
     });
   });
 

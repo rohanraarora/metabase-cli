@@ -16,7 +16,6 @@ vi.mock("node:os", async () => {
 
 import {
   loadConfig,
-  saveConfig,
   addProfile,
   removeProfile,
   getActiveProfile,
