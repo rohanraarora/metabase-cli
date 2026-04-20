@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SafetyGuard } from "../src/safety/guard.js";
 import type { MetabaseClient } from "../src/client.js";
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { Profile } from "../src/types.js";
 
 // Mock the config store to avoid filesystem operations
