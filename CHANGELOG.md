@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2026-04-20
+
+### Fixed
+
+- `question update` no longer corrupts v0.59+ cards when template tags are involved. The previous code wrapped `stages[0].native` as an object with nested `template-tags`; Metabase saved the payload but the query processor could not substitute parameters, leaving cards unrunnable ("Card does not have a template tag named X"). Updates now emit `native` as a string with `template-tags` at the stage level, matching native-UI-authored cards. Cards previously corrupted by this bug are healed on their next update.
+
 ## [0.6.0] - 2026-04-07
 
 ### Added
@@ -124,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
+[0.6.1]: https://github.com/rohanraarora/metabase-cli/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/rohanraarora/metabase-cli/compare/v0.4.0...v0.4.1
