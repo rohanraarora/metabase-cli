@@ -6,6 +6,7 @@ import { SafetyGuard } from "../safety/guard.js";
 import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
 import { resolveClient, resolveDb, isUnsafe, resolveInput } from "./helpers.js";
+import { formatInBandError } from "../utils/errors.js";
 import type { DatasetQuery, OutputFormat } from "../types.js";
 
 const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
@@ -249,7 +250,7 @@ Examples:
           // table or tsv format: query normally and format locally
           const result = await api.query(cardId, parameterValues);
           if (result.status === "failed") {
-            console.error("Query failed:", (result as any).error);
+            console.error(`Query failed: ${formatInBandError((result as any).error)}`);
             process.exit(1);
           }
           const columns = opts.columns?.split(",");

@@ -1,3 +1,5 @@
+import { formatInBandError } from "./errors.js";
+
 /**
  * Checks if an export response body is actually a JSON error from Metabase.
  * Metabase streaming export endpoints may return 200 with a JSON error body
@@ -9,7 +11,7 @@ export function checkExportError(buf: Buffer, format: string): void {
     try {
       const parsed = JSON.parse(buf.toString("utf-8"));
       if (parsed.status === "failed" || parsed.error) {
-        throw new Error(`Query failed: ${parsed.error || "unknown error"}`);
+        throw new Error(`Query failed: ${formatInBandError(parsed.error)}`);
       }
     } catch (e: any) {
       if (e.message.startsWith("Query failed:")) throw e;

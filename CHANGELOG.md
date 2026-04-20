@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.6.1] - 2026-04-20
 
+### Added
+
+- Global `--verbose` flag (and `METABASE_CLI_VERBOSE=1` env var) to print full API error response bodies. Useful for debugging; off by default.
+
+### Changed
+
+- API errors are now one-line human-readable messages instead of the full server response. Previously a single 500 dumped 5–20 KB of Clojure stacktrace into stdout; now it prints just the top-level `message` / `error` / `cause` field (e.g. `500 Server Error: Invalid parameter: Card 24,009 does not have a template tag named "since_date".`). Use `--verbose` to see the original body. Applies to both HTTP errors and in-band query-execution failures.
+
 ### Fixed
 
 - `question update` no longer corrupts v0.59+ cards when template tags are involved. The previous code wrapped `stages[0].native` as an object with nested `template-tags`; Metabase saved the payload but the query processor could not substitute parameters, leaving cards unrunnable ("Card does not have a template tag named X"). Updates now emit `native` as a string with `template-tags` at the stage level, matching native-UI-authored cards. Cards previously corrupted by this bug are healed on their next update.
