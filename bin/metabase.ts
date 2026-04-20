@@ -33,10 +33,14 @@ program
   .version(pkg.version)
   .option("--unsafe", "Bypass safe mode globally")
   .option("--profile <name>", "Use a specific profile for this command")
+  .option("--verbose", "Print full error response bodies (also: METABASE_CLI_VERBOSE=1)")
   .hook("preAction", (thisCommand) => {
     const opts = thisCommand.opts();
     if (opts.profile) {
       process.env._METABASE_CLI_PROFILE = opts.profile;
+    }
+    if (opts.verbose) {
+      process.env.METABASE_CLI_VERBOSE = "1";
     }
   });
 
