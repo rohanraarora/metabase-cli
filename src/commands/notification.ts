@@ -1,7 +1,27 @@
 import { Command } from "commander";
-import { NotificationApi } from "../api/notification.js";
+import {
+  canonicalizeChannelType,
+  cronSubscription,
+  NotificationApi,
+  type NotificationHandler,
+  type NotificationRecipient,
+  type NotificationSendCondition,
+  type NotificationSubscription,
+  slackChannelRecipient,
+  userRecipient,
+} from "../api/notification.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient } from "./helpers.js";
+
+function parseSendCondition(raw: string): NotificationSendCondition {
+  const v = raw.toLowerCase();
+  if (v === "rows" || v === "has_result") return "has_result";
+  if (v === "goal_above" || v === "above_goal") return "goal_above";
+  if (v === "goal_below" || v === "below_goal") return "goal_below";
+  throw new Error(
+    `Invalid --condition "${raw}". Use one of: rows | has_result | goal_above | goal_below`,
+  );
+}
 
 export function notificationCommand(): Command {
   const cmd = new Command("notification").description("Manage notifications").addHelpText(
@@ -11,6 +31,7 @@ Examples:
   $ metabase-cli notification list
   $ metabase-cli notification show 1
   $ metabase-cli notification create --card 42 --channel-type email --recipients "1,2,3"
+  $ metabase-cli notification create --card 42 --channel-type slack --slack-channel "#alerts" --schedule "0 0 * * * ?"
   $ metabase-cli notification send 1`,
   );
 
@@ -65,39 +86,74 @@ Examples:
     .command("create")
     .description("Create a new notification")
     .requiredOption("--card <id>", "Card ID to notify on", parseInt)
-    .option("--channel-type <type>", "Channel type: email, slack", "email")
-    .option("--recipients <ids>", "Comma-separated recipient user IDs")
-    .option("--schedule <cron>", "Cron expression for the schedule")
+    .option(
+      "--channel-type <type>",
+      "Channel type: email, slack (accepts bare or channel/-prefixed values)",
+      "email",
+    )
+    .option("--recipients <ids>", "Comma-separated recipient user IDs (email handlers)")
+    .option(
+      "--slack-channel <name>",
+      "Slack channel name (e.g. #alerts) -- emits a raw-value recipient. Required for Slack channels; user IDs alone are not enough.",
+    )
+    .option(
+      "--schedule <cron>",
+      "Quartz/Spring cron schedule (e.g. '0 0 * * * ?' for hourly on the hour). Mounted as a top-level subscription, NOT on the handler.",
+    )
+    .option(
+      "--condition <type>",
+      "Send condition: rows | has_result | goal_above | goal_below",
+      "has_result",
+    )
+    .option("--send-once", "Send only the first time the condition is met", false)
+    .option("--disable-links", "Disable links in the notification message", false)
     .addHelpText(
       "after",
       `
 Examples:
   $ metabase-cli notification create --card 42 --channel-type email --recipients "1,2,3"
-  $ metabase-cli notification create --card 42 --channel-type slack --schedule "0 9 * * *"`,
+  $ metabase-cli notification create --card 42 --channel-type slack --slack-channel "#alerts" --schedule "0 0 * * * ?"
+  $ metabase-cli notification create --card 42 --channel-type slack --slack-channel "#alerts" --condition goal_above --schedule "0 */15 * * * ?"`,
     )
     .action(async (opts) => {
       const client = await resolveClient();
       const api = new NotificationApi(client);
 
-      const recipientIds = opts.recipients
-        ? opts.recipients.split(",").map((id: string) => parseInt(id.trim()))
-        : [];
+      const channelType = canonicalizeChannelType(opts.channelType);
 
-      const handler: Record<string, unknown> = {
-        channel_type: opts.channelType,
-        recipients: recipientIds.map((id: number) => ({
-          type: "notification-recipient/user",
-          user_id: id,
-        })),
-      };
-      if (opts.schedule) {
-        handler.schedule = opts.schedule;
+      const recipients: NotificationRecipient[] = [];
+      if (opts.recipients) {
+        for (const id of opts.recipients.split(",")) {
+          const parsed = parseInt(id.trim());
+          if (!Number.isNaN(parsed)) recipients.push(userRecipient(parsed));
+        }
       }
+      if (opts.slackChannel) {
+        recipients.push(slackChannelRecipient(opts.slackChannel));
+      }
+
+      if (channelType === "channel/slack" && recipients.length === 0) {
+        throw new Error(
+          "Slack handler requires either --slack-channel <#name> or --recipients <user_ids>.",
+        );
+      }
+
+      const handler: NotificationHandler = { channel_type: channelType, recipients };
+
+      const subscriptions: NotificationSubscription[] = opts.schedule
+        ? [cronSubscription(opts.schedule)]
+        : [];
 
       const notification = await api.create({
         payload_type: "notification/card",
-        payload: { card_id: opts.card },
-        handlers: [handler as any],
+        payload: {
+          card_id: opts.card,
+          send_condition: parseSendCondition(opts.condition),
+          send_once: !!opts.sendOnce,
+          disable_links: !!opts.disableLinks,
+        },
+        handlers: [handler],
+        subscriptions,
         active: true,
       });
       console.log(`Notification #${(notification as any).id} created.`);

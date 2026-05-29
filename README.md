@@ -145,6 +145,7 @@ metabase-cli question create --name "Revenue Trend" --sql-file trend.sql --db 1 
 metabase-cli question update 42 --name "New Name"
 metabase-cli question update 42 --sql-file updated-query.sql --unsafe
 metabase-cli question update 42 --display line --viz-file viz.json
+metabase-cli question update 42 --db 35 --sql-file ch-query.sql --unsafe   # Move card to a different DB
 
 # Delete a question
 metabase-cli question delete 42
@@ -274,9 +275,20 @@ metabase-cli alert list
 metabase-cli alert show 3
 metabase-cli alert create --card 42 --condition rows --first-only
 metabase-cli alert create --card 42 --condition goal --above-goal --recipients 1,2,3
+
+# Slack alert: post to a channel on every cron tick while the question has rows.
+metabase-cli alert create \
+  --card 42 \
+  --condition rows \
+  --channel-type slack \
+  --slack-channel "#alerts" \
+  --schedule "0 0 * * * ?"        # Quartz cron — hourly on the hour
+
 metabase-cli alert update 3 --condition goal --above-goal
 metabase-cli alert delete 3
 ```
+
+`--channel-type` accepts the bare values `slack` / `email` or the prefixed `channel/slack` / `channel/email` — the CLI canonicalizes to the prefixed form Metabase v0.59+ requires. Slack handlers need `--slack-channel <#name>` (a `notification-recipient/raw-value` is emitted under the hood) — Slack user IDs alone aren't enough. `--schedule` accepts a Quartz/Spring cron string and is attached as a top-level `notification-subscription/cron`; for legacy callers the older `--schedule-type hourly|daily|weekly|monthly` + `--schedule-hour` still works and is translated to cron.
 
 ### Revisions
 
@@ -331,9 +343,20 @@ metabase-cli segment delete 1
 metabase-cli notification list
 metabase-cli notification show 1
 metabase-cli notification create --card 42 --channel-type email --recipients "1,2,3"
+
+# Slack channel post — raw-value recipient + top-level cron subscription.
+metabase-cli notification create \
+  --card 42 \
+  --channel-type slack \
+  --slack-channel "#alerts" \
+  --schedule "0 0 * * * ?" \
+  --condition has_result
+
 metabase-cli notification update 1 --active false
 metabase-cli notification send 1
 ```
+
+The `--condition` flag accepts `rows` / `has_result` / `goal_above` / `goal_below`. `--send-once` corresponds to the v0.59+ payload's `send_once` (the old `alert_first_only`).
 
 ## File Input
 

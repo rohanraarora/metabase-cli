@@ -23,6 +23,17 @@ const TAG_TYPE_TO_PARAM_TYPE: Record<string, string> = {
 // object (legacy `{query, template-tags}` shape) under stages corrupts the
 // card: Metabase saves the extra object but the query processor fails to
 // substitute parameters, leaving the card unrunnable.
+// Returns a new DatasetQuery with the top-level `database` field set to the
+// given id. Card updates that change the underlying database must also flow
+// through dataset_query.database -- if only `database_id` is sent at the top
+// level, Metabase keeps running the card against the original database.
+export function applyDatabaseToDatasetQuery(
+  existing: DatasetQuery,
+  databaseId: number,
+): DatasetQuery {
+  return { ...existing, database: databaseId };
+}
+
 export function buildDatasetQueryUpdate(
   existing: DatasetQuery,
   sql: string | undefined,
@@ -374,6 +385,7 @@ Examples:
     .option("--collection <id>", "Move to collection", parseInt)
     .option("--sql <sql>", "New SQL query")
     .option("--sql-file <path>", "Read new SQL query from a file")
+    .option("--db <id>", "Move the question to a different database", parseInt)
     .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
     .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
     .option("--viz-file <path>", "Read visualization settings from a JSON file")
@@ -388,6 +400,7 @@ Safe mode blocks updates to questions you didn't create. Use --unsafe to bypass.
 Examples:
   $ metabase-cli question update 42 --name "New Name"
   $ metabase-cli question update 42 --sql-file updated-query.sql --unsafe
+  $ metabase-cli question update 42 --db 35 --sql-file ch-query.sql --unsafe
   $ metabase-cli question update 42 --display line
   $ metabase-cli question update 42 --viz-file viz.json
   $ metabase-cli question update 42 --sql-file query.sql --template-tags-file tags.json`,
@@ -441,17 +454,20 @@ Examples:
           }
         }
 
-        if (opts.sql || opts.sqlFile || templateTags) {
+        const needsDatasetQueryUpdate =
+          opts.sql || opts.sqlFile || templateTags || opts.db !== undefined;
+        if (needsDatasetQueryUpdate) {
           const sql =
             opts.sql || opts.sqlFile
               ? resolveInput(opts.sql, opts.sqlFile, "sql", "sql-file")
               : undefined;
           const existing = await api.get(cardId);
-          updates.dataset_query = buildDatasetQueryUpdate(
-            existing.dataset_query,
-            sql,
-            templateTags,
-          );
+          let datasetQuery = buildDatasetQueryUpdate(existing.dataset_query, sql, templateTags);
+          if (opts.db !== undefined) {
+            datasetQuery = applyDatabaseToDatasetQuery(datasetQuery, opts.db);
+            updates.database_id = opts.db;
+          }
+          updates.dataset_query = datasetQuery;
 
           if (templateTags) {
             updates.parameters = buildParametersFromTags(templateTags);

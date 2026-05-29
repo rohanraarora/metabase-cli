@@ -75,7 +75,7 @@ describe("AlertApi", () => {
     expect(opts.method).toBe("GET");
   });
 
-  it("create(params) → POST /api/notification with translated body", async () => {
+  it("create(params) → POST /api/notification with v0.59+ translated body", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
@@ -95,15 +95,55 @@ describe("AlertApi", () => {
       payload_type: "notification/card",
       payload: {
         card_id: 10,
-        alert_condition: "rows",
-        alert_first_only: false,
+        send_condition: "has_result",
+        send_once: false,
       },
-      handlers: [{ channel_type: "email" }],
+      // Channel type is canonicalized to the v0.59+ "channel/<type>" form.
+      handlers: [{ channel_type: "channel/email", recipients: [] }],
       active: true,
     });
   });
 
-  it("update(1, params) → PUT /api/notification/1 with translated body", async () => {
+  it("create(slack) → emits raw-value recipient + top-level cron subscription", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new AlertApi(client);
+    globalThis.fetch = mockFetch({ id: 2 });
+
+    const params = {
+      card: { id: 10 },
+      alert_condition: "rows" as const,
+      alert_first_only: false,
+      channels: [
+        {
+          channel_type: "slack",
+          enabled: true,
+          details: { channel: "#alerts" },
+          schedule_type: "hourly" as const,
+        },
+      ],
+    };
+    await api.create(params);
+
+    const [, opts] = (globalThis.fetch as any).mock.calls[0];
+    const body = JSON.parse(opts.body);
+    expect(body.handlers).toEqual([
+      {
+        channel_type: "channel/slack",
+        recipients: [
+          {
+            type: "notification-recipient/raw-value",
+            details: { value: "#alerts" },
+          },
+        ],
+      },
+    ]);
+    // Schedule lives on top-level subscriptions[], not on the handler.
+    expect(body.subscriptions).toEqual([
+      { type: "notification-subscription/cron", cron_schedule: "0 0 * * * ?" },
+    ]);
+  });
+
+  it("update(1, params) → PUT /api/notification/1 with translated send_once", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
     globalThis.fetch = mockFetch({ id: 1 });
@@ -116,7 +156,7 @@ describe("AlertApi", () => {
     expect(opts.method).toBe("PUT");
     expect(JSON.parse(opts.body)).toEqual({
       payload_type: "notification/card",
-      payload: { alert_first_only: true },
+      payload: { send_once: true },
     });
   });
 
