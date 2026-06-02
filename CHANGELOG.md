@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `question update --db <id>` flag — moves a saved card to a different database. Updates both the top-level `database_id` and `dataset_query.database` so the two never drift. Without this, `PUT /api/card/{id}` with a new `database_id` alone leaves `dataset_query.database` pointing at the old DB and the card keeps running against the original source.
+- `alert create` / `notification create`: `--slack-channel <name>` flag for posting to a Slack channel by name. Emits a `notification-recipient/raw-value` recipient with `details.value: "#channel"`, which is the only shape v0.59+ Metabase accepts for channel-name targets.
+- `alert create` / `alert update`: `--schedule <cron>` (Quartz/Spring), `--schedule-type hourly|daily|weekly|monthly`, and `--schedule-hour` flags. Schedules are now attached to the top-level `subscriptions[]` as `notification-subscription/cron` (the location v0.59+ expects).
+- `notification create`: `--condition rows|has_result|goal_above|goal_below`, `--send-once`, and `--disable-links` flags so the full v0.59+ payload is reachable from the CLI.
+
+### Fixed
+
+- `alert create` / `notification create` with `--channel-type slack` no longer returns `400 Bad Request: {"specific-errors":{"handlers":[{"channel_type":["unknown error, received: :slack"]}]}}`. The CLI now canonicalizes the channel type to the `channel/slack` / `channel/email` form Metabase v0.59+ requires. Both the bare (`slack`) and prefixed (`channel/slack`) forms are accepted.
+- `notification create --schedule` no longer attaches a raw cron string to `handlers[].schedule` (which the v0.59+ API silently ignored). The cron is now mounted at the notification level as `subscriptions[{type: "notification-subscription/cron", cron_schedule: "..."}]`, matching the server-side payload model.
+- `AlertApi.create` / `AlertApi.update` translate `alert_condition` + `alert_above_goal` → `send_condition` (`has_result` / `goal_above` / `goal_below`) and `alert_first_only` → `send_once`, matching the renamed payload fields in v0.59+. Older callers can keep using the legacy field names; the translation is internal.
+
 ## [0.6.1] - 2026-04-20
 
 ### Added
