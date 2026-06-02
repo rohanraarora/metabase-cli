@@ -1,6 +1,6 @@
 {
   "name": "metabase-cli",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "description": "Headless CLI interface for Metabase instances",
   "main": "./dist/index.js",
@@ -60,6 +60,6 @@
     "tsup": "^8.2.0",
     "typescript": "^5.5.0",
     "typescript-eslint": "^8.57.1",
-    "vitest": "^3.2.4"
+    "vitest": "^4.1.8"
   }
 }

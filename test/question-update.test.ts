@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildDatasetQueryUpdate } from "../src/commands/question.js";
+import { applyDatabaseToDatasetQuery, buildDatasetQueryUpdate } from "../src/commands/question.js";
 import type { DatasetQuery } from "../src/types.js";
 
 // Regression coverage for the bug where updating a v0.59+ card with template
@@ -145,5 +145,49 @@ describe("buildDatasetQueryUpdate — legacy (pre-v0.59) shape", () => {
     const out = buildDatasetQueryUpdate(existing, "SELECT {{id}} AS x", undefined);
 
     expect(out.native).toEqual({ query: "SELECT {{id}} AS x", "template-tags": tags });
+  });
+});
+
+// Regression coverage for the `question update --db <id>` flag. Without
+// updating dataset_query.database alongside the top-level database_id, the
+// card runs against the original database even after the PUT succeeds.
+describe("applyDatabaseToDatasetQuery", () => {
+  it("overrides the top-level database field on a v0.59+ stages dataset_query", () => {
+    const existing: DatasetQuery = {
+      type: "native",
+      database: 16,
+      stages: [{ "lib/type": "mbql.stage/native", native: "SELECT 1" }],
+    };
+
+    const out = applyDatabaseToDatasetQuery(existing, 35);
+
+    expect(out.database).toBe(35);
+    expect(out.stages).toEqual(existing.stages);
+    expect(out.type).toBe("native");
+  });
+
+  it("overrides the top-level database field on a legacy native dataset_query", () => {
+    const existing: DatasetQuery = {
+      type: "native",
+      database: 2,
+      native: { query: "SELECT 1", "template-tags": {} },
+    };
+
+    const out = applyDatabaseToDatasetQuery(existing, 14);
+
+    expect(out.database).toBe(14);
+    expect(out.native).toEqual(existing.native);
+  });
+
+  it("does not mutate the input dataset_query", () => {
+    const existing: DatasetQuery = {
+      type: "native",
+      database: 16,
+      stages: [{ "lib/type": "mbql.stage/native", native: "SELECT 1" }],
+    };
+
+    applyDatabaseToDatasetQuery(existing, 35);
+
+    expect(existing.database).toBe(16);
   });
 });
