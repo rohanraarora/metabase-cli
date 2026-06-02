@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { AlertApi, type AlertChannel } from "../api/alert.js";
+import { canonicalizeChannelType } from "../api/notification.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient } from "./helpers.js";
 
@@ -128,10 +129,7 @@ Examples:
       "--schedule <cron>",
       "Quartz/Spring cron schedule (e.g. '0 0 * * * ?' for hourly on the hour)",
     )
-    .option(
-      "--schedule-type <type>",
-      "Legacy schedule cadence: hourly | daily | weekly | monthly",
-    )
+    .option("--schedule-type <type>", "Legacy schedule cadence: hourly | daily | weekly | monthly")
     .option("--schedule-hour <hour>", "Hour for daily/weekly schedules (0-23)")
     .addHelpText(
       "after",
@@ -145,7 +143,14 @@ Examples:
       const client = await resolveClient();
       const api = new AlertApi(client);
 
-      if (opts.channelType === "slack" && !opts.slackChannel && !opts.recipients) {
+      // Canonicalize first so the prefixed form (channel/slack) is validated
+      // the same as the bare form (slack); otherwise the guard is silently
+      // skipped and an empty-recipient Slack handler goes out.
+      if (
+        canonicalizeChannelType(opts.channelType) === "channel/slack" &&
+        !opts.slackChannel &&
+        !opts.recipients
+      ) {
         throw new Error(
           "Slack handler requires --slack-channel <#name> or --recipients <user_ids>.",
         );

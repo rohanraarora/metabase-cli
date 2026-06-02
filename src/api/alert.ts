@@ -193,7 +193,10 @@ export class AlertApi {
     const payload: Partial<NotificationPayload> = {};
     if (params.card) payload.card_id = params.card.id;
     if (params.alert_condition !== undefined || params.alert_above_goal !== undefined) {
-      const condition = params.alert_condition ?? "rows";
+      // If only --above-goal is supplied, it implies a goal condition; falling
+      // back to "rows" here would silently map a goal alert to has_result.
+      const condition =
+        params.alert_condition ?? (params.alert_above_goal !== undefined ? "goal" : "rows");
       payload.send_condition = mapSendCondition(condition, params.alert_above_goal);
     }
     if (params.alert_first_only !== undefined) payload.send_once = params.alert_first_only;

@@ -15,7 +15,7 @@ import { RevisionApi } from "../src/api/revision.js";
 import { ActivityApi } from "../src/api/activity.js";
 import { TimelineApi } from "../src/api/timeline.js";
 import { SegmentApi } from "../src/api/segment.js";
-import { NotificationApi } from "../src/api/notification.js";
+import { NotificationApi, canonicalizeChannelType } from "../src/api/notification.js";
 import { DashboardApi } from "../src/api/dashboard.js";
 
 function makeProfile(): Profile {
@@ -157,6 +157,22 @@ describe("AlertApi", () => {
     expect(JSON.parse(opts.body)).toEqual({
       payload_type: "notification/card",
       payload: { send_once: true },
+    });
+  });
+
+  it("update with only alert_above_goal → send_condition goal_above (not has_result)", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new AlertApi(client);
+    globalThis.fetch = mockFetch({ id: 1 });
+
+    // Passing --above-goal without --condition must imply a goal condition;
+    // falling back to "rows" would silently map a goal alert to has_result.
+    await api.update(1, { alert_above_goal: true });
+
+    const [, opts] = (globalThis.fetch as any).mock.calls[0];
+    expect(JSON.parse(opts.body)).toEqual({
+      payload_type: "notification/card",
+      payload: { send_condition: "goal_above" },
     });
   });
 
@@ -491,6 +507,20 @@ describe("NotificationApi", () => {
     expect(url).toBe("https://metabase.test.com/api/notification/1/send");
     expect(opts.method).toBe("POST");
     expect(JSON.parse(opts.body)).toEqual({});
+  });
+});
+
+// ─── canonicalizeChannelType ─────────────────────────────────────────────────
+
+describe("canonicalizeChannelType", () => {
+  it("prefixes bare channel types", () => {
+    expect(canonicalizeChannelType("slack")).toBe("channel/slack");
+    expect(canonicalizeChannelType("email")).toBe("channel/email");
+  });
+
+  it("is idempotent on already-prefixed types (so validation matches either form)", () => {
+    expect(canonicalizeChannelType("channel/slack")).toBe("channel/slack");
+    expect(canonicalizeChannelType("channel/email")).toBe("channel/email");
   });
 });
 
