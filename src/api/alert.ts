@@ -2,11 +2,14 @@ import type { MetabaseClient } from "../client.js";
 import {
   canonicalizeChannelType,
   cronSubscription,
+  mergeNotificationUpdate,
   type NotificationHandler,
   type NotificationRecipient,
   type NotificationSendCondition,
   type NotificationSubscription,
+  notificationToUpdateBody,
   slackChannelRecipient,
+  type UpdateNotificationParams,
   userRecipient,
 } from "./notification.js";
 
@@ -42,7 +45,13 @@ export interface UpdateAlertParams {
   alert_condition?: "rows" | "goal";
   alert_first_only?: boolean;
   alert_above_goal?: boolean;
+  /** Handler source (channel type / recipients / Slack channel). */
   channels?: AlertChannel[];
+  /**
+   * Cron schedule, kept separate from `channels` so the schedule can change
+   * without rewriting (and wiping) the existing handlers.
+   */
+  cron?: string;
 }
 
 interface NotificationPayload {
@@ -59,14 +68,6 @@ interface NotificationCreateBody {
   active: boolean;
 }
 
-interface NotificationUpdateBody {
-  payload_type?: "notification/card";
-  payload?: Partial<NotificationPayload>;
-  handlers?: NotificationHandler[];
-  subscriptions?: NotificationSubscription[];
-  active?: boolean;
-}
-
 function mapSendCondition(
   condition: "rows" | "goal",
   aboveGoal?: boolean,
@@ -78,7 +79,7 @@ function mapSendCondition(
 // Translate the legacy schedule_type/schedule_hour shape into a cron expression
 // the new subscriptions[] API understands. Returns undefined if the channel
 // carries no schedule info.
-function channelToCron(ch: AlertChannel): string | undefined {
+export function channelToCron(ch: AlertChannel): string | undefined {
   if (ch.cron_schedule) return ch.cron_schedule;
   const t = ch.schedule_type;
   if (!t) return undefined;
@@ -185,10 +186,14 @@ export class AlertApi {
     return this.client.post<unknown>("/api/notification", body);
   }
 
+  /**
+   * Update an alert. v0.59+ requires the full notification on PUT, so this
+   * reads the current notification, applies only the requested changes
+   * (preserving existing handlers when only the schedule changes, and vice
+   * versa), and sends the whole object back.
+   */
   async update(id: number, params: UpdateAlertParams): Promise<unknown> {
-    const body: NotificationUpdateBody = {
-      payload_type: "notification/card",
-    };
+    const changes: UpdateNotificationParams = {};
 
     const payload: Partial<NotificationPayload> = {};
     if (params.card) payload.card_id = params.card.id;
@@ -200,18 +205,46 @@ export class AlertApi {
       payload.send_condition = mapSendCondition(condition, params.alert_above_goal);
     }
     if (params.alert_first_only !== undefined) payload.send_once = params.alert_first_only;
-    if (Object.keys(payload).length > 0) body.payload = payload;
+    if (Object.keys(payload).length > 0) changes.payload = payload;
 
-    if (params.channels) {
-      body.handlers = translateChannelsToHandlers(params.channels);
-      const subs = translateChannelsToSubscriptions(params.channels);
-      if (subs.length > 0) body.subscriptions = subs;
-    }
+    if (params.channels) changes.handlers = translateChannelsToHandlers(params.channels);
 
+    // Schedule: prefer the explicit `cron`, else fall back to a schedule carried
+    // on the channels (back-compat). Only set subscriptions when one is given so
+    // an unrelated update doesn't drop the existing schedule.
+    const subs = params.cron
+      ? [cronSubscription(params.cron)]
+      : params.channels
+        ? translateChannelsToSubscriptions(params.channels)
+        : [];
+    if (subs.length > 0) changes.subscriptions = subs;
+
+    const current = (await this.get(id)) as Record<string, unknown>;
+    const body = mergeNotificationUpdate(notificationToUpdateBody(current), changes);
     return this.client.put<unknown>(`/api/notification/${id}`, body);
   }
 
+  /**
+   * Archive an alert (v0.59+ has no DELETE route — removal is `active:false`).
+   * Reads the current notification and PUTs it back with `active:false` so the
+   * required full-object schema is satisfied (a bare `{active:false}` is rejected).
+   */
   async delete(id: number): Promise<void> {
-    await this.client.put(`/api/notification/${id}`, { active: false });
+    const current = (await this.get(id)) as Record<string, unknown>;
+    // A card-notification with a null payload (a corrupt "orphan", e.g. left by a
+    // pre-fix CLI) cannot be archived OR removed through the API: v0.59 has no
+    // DELETE route, and the update endpoint rejects the null payload / null
+    // payload_id (500 "payload_id should be an int"). Surface that clearly
+    // instead of a cryptic server error — it needs a direct DB delete.
+    if (current.payload === null && current.payload_type === "notification/card") {
+      throw new Error(
+        `Notification ${id} is a corrupt orphan (null payload) and cannot be archived or ` +
+          `removed via the API (Metabase v0.59 has no DELETE route and rejects a null payload). ` +
+          `It must be deleted directly from the application database (the "notification" table).`,
+      );
+    }
+    const body = notificationToUpdateBody(current);
+    body.active = false;
+    await this.client.put(`/api/notification/${id}`, body);
   }
 }

@@ -40,6 +40,18 @@ function mockFetchVoid() {
   } as Response);
 }
 
+/** Returns each response in order — for read-modify-write calls (GET then PUT). */
+function mockFetchSeq(responses: unknown[]) {
+  const fn = vi.fn();
+  for (const r of responses) {
+    fn.mockResolvedValueOnce({
+      ok: true,
+      text: () => Promise.resolve(JSON.stringify(r)),
+    } as Response);
+  }
+  return fn;
+}
+
 const originalFetch = globalThis.fetch;
 
 afterEach(() => {
@@ -143,50 +155,180 @@ describe("AlertApi", () => {
     ]);
   });
 
-  it("update(1, params) → PUT /api/notification/1 with translated send_once", async () => {
+  // A representative hydrated notification, as returned by GET. The CLI must
+  // read this, merge the requested change, and PUT the whole thing back WITH
+  // the existing ids intact — the server diffs nested rows by :id, so dropping
+  // them triggers a destructive delete+recreate.
+  const currentNotification = {
+    id: 1,
+    payload_type: "notification/card",
+    creator_id: 4,
+    payload: {
+      id: 100,
+      card_id: 10,
+      send_condition: "has_result",
+      send_once: false,
+      card: { id: 10, name: "Q" }, // hydrated junk that must be stripped
+    },
+    handlers: [
+      {
+        id: 5,
+        notification_id: 1,
+        channel_type: "channel/slack",
+        active: true,
+        channel: { id: 3 }, // hydration, must be stripped
+        template: null,
+        recipients: [
+          {
+            id: 9,
+            notification_handler_id: 5,
+            type: "notification-recipient/raw-value",
+            details: { value: "#alerts" },
+            user: null, // hydration, must be stripped
+          },
+        ],
+      },
+    ],
+    subscriptions: [
+      {
+        id: 7,
+        notification_id: 1,
+        type: "notification-subscription/cron",
+        cron_schedule: "0 0 3 * * ?",
+        ui_display_type: "cron/builder",
+        event_name: null,
+      },
+    ],
+    active: true,
+    creator: { id: 4 }, // hydration, must be stripped
+  };
+
+  it("update(1, {first_only}) → PUT full body, ids preserved, hydration stripped", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
-    globalThis.fetch = mockFetch({ id: 1 });
+    globalThis.fetch = mockFetchSeq([currentNotification, { id: 1 }]);
 
-    const params = { alert_first_only: true };
-    await api.update(1, params);
+    await api.update(1, { alert_first_only: true });
 
-    const [url, opts] = (globalThis.fetch as any).mock.calls[0];
+    const calls = (globalThis.fetch as any).mock.calls;
+    expect(calls[0][1].method).toBe("GET");
+    const [url, opts] = calls[1];
     expect(url).toBe("https://metabase.test.com/api/notification/1");
     expect(opts.method).toBe("PUT");
     expect(JSON.parse(opts.body)).toEqual({
       payload_type: "notification/card",
-      payload: { send_once: true },
+      id: 1,
+      creator_id: 4,
+      active: true,
+      payload: { id: 100, card_id: 10, send_condition: "has_result", send_once: true },
+      handlers: [
+        {
+          id: 5,
+          notification_id: 1,
+          channel_type: "channel/slack",
+          active: true,
+          recipients: [
+            {
+              id: 9,
+              notification_handler_id: 5,
+              type: "notification-recipient/raw-value",
+              details: { value: "#alerts" },
+            },
+          ],
+        },
+      ],
+      subscriptions: [
+        {
+          id: 7,
+          notification_id: 1,
+          type: "notification-subscription/cron",
+          cron_schedule: "0 0 3 * * ?",
+          ui_display_type: "cron/builder",
+        },
+      ],
     });
   });
 
-  it("update with only alert_above_goal → send_condition goal_above (not has_result)", async () => {
+  it("update with only alert_above_goal → send_condition goal_above, payload id kept", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
-    globalThis.fetch = mockFetch({ id: 1 });
+    globalThis.fetch = mockFetchSeq([currentNotification, { id: 1 }]);
 
     // Passing --above-goal without --condition must imply a goal condition;
     // falling back to "rows" would silently map a goal alert to has_result.
     await api.update(1, { alert_above_goal: true });
 
-    const [, opts] = (globalThis.fetch as any).mock.calls[0];
-    expect(JSON.parse(opts.body)).toEqual({
-      payload_type: "notification/card",
-      payload: { send_condition: "goal_above" },
+    const [, opts] = (globalThis.fetch as any).mock.calls[1];
+    expect(JSON.parse(opts.body).payload).toEqual({
+      id: 100,
+      card_id: 10,
+      send_condition: "goal_above",
+      send_once: false,
     });
   });
 
-  it("delete(1) → PUT /api/notification/1 with { active: false }", async () => {
+  it("update(1, {cron}) → keeps existing handler, updates the same subscription in place", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new AlertApi(client);
-    globalThis.fetch = mockFetch({});
+    globalThis.fetch = mockFetchSeq([currentNotification, { id: 1 }]);
+
+    await api.update(1, { cron: "0 30 * * * ?" });
+
+    const body = JSON.parse((globalThis.fetch as any).mock.calls[1][1].body);
+    // Handler untouched (full, with ids)...
+    expect(body.handlers[0].id).toBe(5);
+    expect(body.handlers[0].recipients[0].details).toEqual({ value: "#alerts" });
+    // ...the existing subscription (id 7) is updated in place, not replaced.
+    expect(body.subscriptions).toEqual([
+      { type: "notification-subscription/cron", cron_schedule: "0 30 * * * ?", id: 7 },
+    ]);
+    // Payload preserved unchanged (with id).
+    expect(body.payload).toEqual({
+      id: 100,
+      card_id: 10,
+      send_condition: "has_result",
+      send_once: false,
+    });
+  });
+
+  it("delete(1) → PUT full body (ids preserved) with active:false (archive in place)", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new AlertApi(client);
+    globalThis.fetch = mockFetchSeq([currentNotification, {}]);
 
     await api.delete(1);
 
-    const [url, opts] = (globalThis.fetch as any).mock.calls[0];
+    const calls = (globalThis.fetch as any).mock.calls;
+    expect(calls[0][1].method).toBe("GET");
+    const [url, opts] = calls[1];
     expect(url).toBe("https://metabase.test.com/api/notification/1");
     expect(opts.method).toBe("PUT");
-    expect(JSON.parse(opts.body)).toEqual({ active: false });
+    const body = JSON.parse(opts.body);
+    expect(body.active).toBe(false);
+    expect(body.payload.id).toBe(100);
+    expect(body.handlers[0].id).toBe(5);
+    expect(body.subscriptions[0].id).toBe(7);
+  });
+
+  it("delete(1) → throws for a corrupt null-payload orphan (no destructive PUT)", async () => {
+    const client = new MetabaseClient(makeProfile());
+    const api = new AlertApi(client);
+    const orphan = {
+      id: 38,
+      payload_type: "notification/card",
+      payload: null,
+      handlers: [],
+      subscriptions: [
+        { id: 1, type: "notification-subscription/cron", cron_schedule: "0 30 * * * ?" },
+      ],
+      active: true,
+    };
+    globalThis.fetch = mockFetchSeq([orphan]);
+
+    await expect(api.delete(38)).rejects.toThrow(/orphan/i);
+    // Only the GET happened — no PUT that could corrupt state further.
+    expect((globalThis.fetch as any).mock.calls).toHaveLength(1);
+    expect((globalThis.fetch as any).mock.calls[0][1].method).toBe("GET");
   });
 });
 
@@ -482,18 +624,52 @@ describe("NotificationApi", () => {
     expect(JSON.parse(opts.body)).toEqual(params);
   });
 
-  it("update(1, params) → PUT /api/notification/1", async () => {
+  it("update(1, {active:false}) → GET then PUT the full id-preserving body with active:false", async () => {
     const client = new MetabaseClient(makeProfile());
     const api = new NotificationApi(client);
-    globalThis.fetch = mockFetch({ id: 1 });
+    const current = {
+      id: 1,
+      payload_type: "notification/card",
+      creator_id: 4,
+      payload: { id: 100, card_id: 10, send_condition: "has_result", card: { id: 10 } },
+      handlers: [
+        {
+          id: 5,
+          channel_type: "channel/email",
+          recipients: [{ id: 9, type: "notification-recipient/user", user_id: 3 }],
+        },
+      ],
+      subscriptions: [
+        { id: 7, type: "notification-subscription/cron", cron_schedule: "0 0 * * * ?" },
+      ],
+      active: true,
+    };
+    globalThis.fetch = mockFetchSeq([current, { id: 1 }]);
 
-    const params = { active: false };
-    await api.update(1, params);
+    await api.update(1, { active: false });
 
-    const [url, opts] = (globalThis.fetch as any).mock.calls[0];
+    const calls = (globalThis.fetch as any).mock.calls;
+    expect(calls[0][1].method).toBe("GET");
+    const [url, opts] = calls[1];
     expect(url).toBe("https://metabase.test.com/api/notification/1");
     expect(opts.method).toBe("PUT");
-    expect(JSON.parse(opts.body)).toEqual(params);
+    expect(JSON.parse(opts.body)).toEqual({
+      payload_type: "notification/card",
+      id: 1,
+      creator_id: 4,
+      payload: { id: 100, card_id: 10, send_condition: "has_result" },
+      handlers: [
+        {
+          id: 5,
+          channel_type: "channel/email",
+          recipients: [{ id: 9, type: "notification-recipient/user", user_id: 3 }],
+        },
+      ],
+      subscriptions: [
+        { id: 7, type: "notification-subscription/cron", cron_schedule: "0 0 * * * ?" },
+      ],
+      active: false,
+    });
   });
 
   it("send(1) → POST /api/notification/1/send", async () => {

@@ -8,6 +8,7 @@ import {
   type NotificationSendCondition,
   type NotificationSubscription,
   slackChannelRecipient,
+  type UpdateNotificationParams,
   userRecipient,
 } from "../api/notification.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
@@ -163,20 +164,29 @@ Examples:
     .command("update <id>")
     .description("Update a notification")
     .option("--active <boolean>", "Set active status: true, false")
+    .option("--card <id>", "Reassign the notification's card", parseInt)
     .addHelpText(
       "after",
       `
 Examples:
-  $ metabase-cli notification update 1 --active false`,
+  $ metabase-cli notification update 1 --active false
+  $ metabase-cli notification update 1 --card 42`,
     )
     .action(async (id: string, opts) => {
       const client = await resolveClient();
       const api = new NotificationApi(client);
       const notificationId = parseInt(id);
 
-      const updates: Record<string, unknown> = {};
+      const updates: UpdateNotificationParams = {};
       if (opts.active !== undefined) {
         updates.active = opts.active === "true";
+      }
+      if (opts.card !== undefined) {
+        updates.payload = { card_id: opts.card };
+      }
+
+      if (Object.keys(updates).length === 0) {
+        throw new Error("Nothing to update. Pass --active <true|false> and/or --card <id>.");
       }
 
       const notification = await api.update(notificationId, updates);
