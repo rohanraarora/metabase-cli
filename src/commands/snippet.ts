@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { SnippetApi } from "../api/snippet.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient, isUnsafe, resolveInput } from "./helpers.js";
+import { resolveClient, isUnsafe, resolveInput, parseIntArg } from "./helpers.js";
 
 export function snippetCommand(): Command {
   const cmd = new Command("snippet").description("Manage SQL snippets").addHelpText(
@@ -73,7 +73,7 @@ Examples:
     .option("--content <sql>", "SQL content")
     .option("--content-file <path>", "Read SQL content from a file")
     .option("--description <desc>", "Description")
-    .option("--collection <id>", "Collection ID", parseInt)
+    .option("--collection <id>", "Collection ID", parseIntArg)
     .addHelpText(
       "after",
       `

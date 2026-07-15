@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { SegmentApi } from "../api/segment.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient, resolveInput } from "./helpers.js";
+import { resolveClient, resolveInput, parseIntArg } from "./helpers.js";
 
 export function segmentCommand(): Command {
   const cmd = new Command("segment").description("Manage segments").addHelpText(
@@ -66,7 +66,7 @@ Examples:
     .command("create")
     .description("Create a new segment")
     .requiredOption("--name <name>", "Segment name")
-    .requiredOption("--table <id>", "Table ID", parseInt)
+    .requiredOption("--table <id>", "Table ID", parseIntArg)
     .option("--definition <json>", "Segment definition as JSON string")
     .option("--definition-file <path>", "Read segment definition from a JSON file")
     .option("--description <description>", "Segment description")

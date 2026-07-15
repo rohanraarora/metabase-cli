@@ -4,7 +4,7 @@ import { resolve, extname } from "node:path";
 import { DatasetApi } from "../api/dataset.js";
 import { formatDatasetResponse } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
-import { resolveClient, resolveDb, resolveInput } from "./helpers.js";
+import { resolveClient, resolveDb, resolveInput, parseIntArg } from "./helpers.js";
 import { formatInBandError } from "../utils/errors.js";
 import type { OutputFormat } from "../types.js";
 
@@ -24,11 +24,11 @@ Examples:
     .description("Execute a SQL query")
     .option("--sql <sql>", "SQL query to execute")
     .option("--sql-file <path>", "Read SQL query from a file")
-    .option("--db <id>", "Database ID (uses profile default if not set)", parseInt)
+    .option("--db <id>", "Database ID (uses profile default if not set)", parseIntArg)
     .option("--format <format>", "Output format: table, json, csv, tsv, xlsx", "table")
     .option("--output <file>", "Write output to a file (format auto-detected from extension)")
     .option("--columns <cols>", "Comma-separated column names to display")
-    .option("--limit <n>", "Limit number of rows", parseInt)
+    .option("--limit <n>", "Limit number of rows", parseIntArg)
     .addHelpText(
       "after",
       `

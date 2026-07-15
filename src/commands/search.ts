@@ -1,14 +1,14 @@
 import { Command } from "commander";
 import { SearchApi } from "../api/search.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient } from "./helpers.js";
+import { resolveClient, parseIntArg } from "./helpers.js";
 
 export function searchCommand(): Command {
   const cmd = new Command("search")
     .description("Search across all entities")
     .argument("<query>", "Search query")
     .option("--models <models>", "Filter by type: card, dashboard, collection, table, database")
-    .option("--limit <n>", "Max results", parseInt)
+    .option("--limit <n>", "Max results", parseIntArg)
     .option("--format <format>", "Output format: table, json", "table")
     .addHelpText(
       "after",

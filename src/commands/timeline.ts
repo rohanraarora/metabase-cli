@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import { TimelineApi } from "../api/timeline.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient } from "./helpers.js";
+import { resolveClient, parseIntArg } from "./helpers.js";
 
 export function timelineCommand(): Command {
   const cmd = new Command("timeline")
@@ -70,7 +70,7 @@ Examples:
     .requiredOption("--name <name>", "Timeline name")
     .option("--description <desc>", "Description")
     .option("--icon <icon>", "Icon", "star")
-    .option("--collection <id>", "Collection ID", parseInt)
+    .option("--collection <id>", "Collection ID", parseIntArg)
     .addHelpText(
       "after",
       `
@@ -98,7 +98,7 @@ Examples:
     .option("--name <name>", "New name")
     .option("--description <desc>", "New description")
     .option("--icon <icon>", "New icon")
-    .option("--collection <id>", "Collection ID", parseInt)
+    .option("--collection <id>", "Collection ID", parseIntArg)
     .addHelpText(
       "after",
       `

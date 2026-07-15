@@ -5,7 +5,7 @@ import { CardApi } from "../api/card.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatDatasetResponse, formatEntityTable, formatJson } from "../utils/output.js";
 import { EXT_TO_FORMAT } from "../utils/export.js";
-import { resolveClient, resolveDb, isUnsafe, resolveInput } from "./helpers.js";
+import { resolveClient, resolveDb, isUnsafe, resolveInput, parseIntArg } from "./helpers.js";
 import { formatInBandError } from "../utils/errors.js";
 import type { DatasetQuery, OutputFormat } from "../types.js";
 
@@ -295,9 +295,9 @@ Examples:
     .requiredOption("--name <name>", "Question name")
     .option("--sql <sql>", "SQL query")
     .option("--sql-file <path>", "Read SQL query from a file")
-    .option("--db <id>", "Database ID (uses profile default if not set)", parseInt)
+    .option("--db <id>", "Database ID (uses profile default if not set)", parseIntArg)
     .option("--description <desc>", "Description")
-    .option("--collection <id>", "Collection ID", parseInt)
+    .option("--collection <id>", "Collection ID", parseIntArg)
     .option("--display <type>", "Display type (table, line, bar, pie, scalar, etc.)", "table")
     .option("--viz <json>", "Visualization settings as JSON string")
     .option("--viz-file <path>", "Read visualization settings from a JSON file")
@@ -382,10 +382,10 @@ Examples:
     .description("Update a question (safe mode by default)")
     .option("--name <name>", "New name")
     .option("--description <desc>", "New description")
-    .option("--collection <id>", "Move to collection", parseInt)
+    .option("--collection <id>", "Move to collection", parseIntArg)
     .option("--sql <sql>", "New SQL query")
     .option("--sql-file <path>", "Read new SQL query from a file")
-    .option("--db <id>", "Move the question to a different database", parseInt)
+    .option("--db <id>", "Move the question to a different database", parseIntArg)
     .option("--display <type>", "Change display type (table, line, bar, pie, scalar, etc.)")
     .option("--viz <json>", "Visualization settings as JSON (merged with existing)")
     .option("--viz-file <path>", "Read visualization settings from a JSON file")
@@ -505,7 +505,7 @@ Examples:
     .command("copy <id>")
     .description("Copy a question")
     .option("--name <name>", "Name for the copy")
-    .option("--collection <id>", "Target collection", parseInt)
+    .option("--collection <id>", "Target collection", parseIntArg)
     .addHelpText(
       "after",
       `

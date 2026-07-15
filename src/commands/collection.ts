@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { CollectionApi } from "../api/collection.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient, isUnsafe } from "./helpers.js";
+import { resolveClient, isUnsafe, parseIntArg } from "./helpers.js";
 
 export function collectionCommand(): Command {
   const cmd = new Command("collection").description("Manage collections").addHelpText(
@@ -121,7 +121,7 @@ Examples:
     .description("Create a new collection")
     .requiredOption("--name <name>", "Collection name")
     .option("--description <desc>", "Description")
-    .option("--parent <id>", "Parent collection ID", parseInt)
+    .option("--parent <id>", "Parent collection ID", parseIntArg)
     .addHelpText(
       "after",
       `
@@ -145,7 +145,7 @@ Examples:
     .description("Update a collection (safe mode by default)")
     .option("--name <name>", "New name")
     .option("--description <desc>", "New description")
-    .option("--parent <id>", "Move to parent collection", parseInt)
+    .option("--parent <id>", "Move to parent collection", parseIntArg)
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText(
       "after",

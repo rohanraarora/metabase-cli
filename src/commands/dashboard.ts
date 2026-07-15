@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { DashboardApi } from "../api/dashboard.js";
 import { SafetyGuard } from "../safety/guard.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient, isUnsafe } from "./helpers.js";
+import { resolveClient, isUnsafe, parseIntArg } from "./helpers.js";
 import type { DashCard, Parameter, ParameterMapping } from "../types.js";
 
 function generateParamId(): string {
@@ -89,7 +89,7 @@ Examples:
     .description("Create a new dashboard")
     .requiredOption("--name <name>", "Dashboard name")
     .option("--description <desc>", "Description")
-    .option("--collection <id>", "Collection ID", parseInt)
+    .option("--collection <id>", "Collection ID", parseIntArg)
     .addHelpText(
       "after",
       `
@@ -113,7 +113,7 @@ Examples:
     .description("Update a dashboard (safe mode by default)")
     .option("--name <name>", "New name")
     .option("--description <desc>", "New description")
-    .option("--collection <id>", "Move to collection", parseInt)
+    .option("--collection <id>", "Move to collection", parseIntArg)
     .option("--unsafe", "Bypass safe mode", false)
     .addHelpText(
       "after",
@@ -167,7 +167,7 @@ Examples:
     .command("copy <id>")
     .description("Copy a dashboard")
     .option("--name <name>", "Name for the copy")
-    .option("--collection <id>", "Target collection", parseInt)
+    .option("--collection <id>", "Target collection", parseIntArg)
     .addHelpText(
       "after",
       `
@@ -188,11 +188,11 @@ Examples:
   cmd
     .command("add-card <dashboard-id>")
     .description("Add a question card to a dashboard")
-    .requiredOption("--card <id>", "Question/card ID to add", parseInt)
-    .option("--row <n>", "Row position (default: auto)", parseInt)
-    .option("--col <n>", "Column position (default: 0)", parseInt, 0)
-    .option("--width <n>", "Card width (default: 6)", parseInt, 6)
-    .option("--height <n>", "Card height (default: 4)", parseInt, 4)
+    .requiredOption("--card <id>", "Question/card ID to add", parseIntArg)
+    .option("--row <n>", "Row position (default: auto)", parseIntArg)
+    .option("--col <n>", "Column position (default: 0)", parseIntArg, 0)
+    .option("--width <n>", "Card width (default: 6)", parseIntArg, 6)
+    .option("--height <n>", "Card height (default: 4)", parseIntArg, 4)
     .addHelpText(
       "after",
       `
@@ -237,7 +237,7 @@ Examples:
   cmd
     .command("remove-card <dashboard-id>")
     .description("Remove a card from a dashboard")
-    .requiredOption("--card <id>", "Question/card ID to remove", parseInt)
+    .requiredOption("--card <id>", "Question/card ID to remove", parseIntArg)
     .addHelpText(
       "after",
       `
@@ -308,7 +308,7 @@ Examples:
     .requiredOption("--slug <slug>", "URL slug")
     .option("--id <id>", "Parameter ID (auto-generated if omitted)")
     .option("--default <value>", "Default value")
-    .option("--source-card <id>", "Values source card ID (for dropdown filters)", parseInt)
+    .option("--source-card <id>", "Values source card ID (for dropdown filters)", parseIntArg)
     .option("--source-value-field <json>", "Value field ref as JSON")
     .option("--source-label-field <json>", "Label field ref as JSON")
     .addHelpText(
@@ -393,7 +393,7 @@ Examples:
     .command("map-param <dashboard-id>")
     .description("Map a dashboard filter to a card's template tag")
     .requiredOption("--param <id>", "Parameter ID on the dashboard")
-    .requiredOption("--card <id>", "Card/question ID on the dashboard", parseInt)
+    .requiredOption("--card <id>", "Card/question ID on the dashboard", parseIntArg)
     .requiredOption(
       "--target <json>",
       'Mapping target as JSON (e.g. \'["variable", ["template-tag", "start_date"]]\')',
@@ -450,7 +450,7 @@ Examples:
     .command("unmap-param <dashboard-id>")
     .description("Remove a parameter mapping from a card")
     .requiredOption("--param <id>", "Parameter ID")
-    .requiredOption("--card <id>", "Card/question ID", parseInt)
+    .requiredOption("--card <id>", "Card/question ID", parseIntArg)
     .addHelpText(
       "after",
       `

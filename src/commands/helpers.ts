@@ -1,8 +1,29 @@
 import { readFileSync } from "node:fs";
-import { Command } from "commander";
+import { Command, InvalidArgumentError } from "commander";
 import { MetabaseClient } from "../client.js";
 import { getActiveProfile, getProfile } from "../config/store.js";
 import type { Profile } from "../types.js";
+
+/**
+ * Coerce a CLI option/argument value to a base-10 integer.
+ *
+ * Use this instead of passing the global `parseInt` directly as a Commander
+ * coercion function. Commander invokes a coercion as `fn(value, previous)`,
+ * where on the first parse `previous` is the option's *default value*. Because
+ * `parseInt(string, radix)` reads its second argument as the radix, wiring it
+ * up with a numeric default silently turns that default into the parsing base —
+ * e.g. `.option("--width <n>", "...", parseInt, 6)` parses `--width 12` as
+ * `parseInt("12", 6) === 8`, and a `--height 8` with default `4` as
+ * `parseInt("8", 4) === NaN`. This wrapper ignores the second argument, always
+ * parses in base 10, and rejects non-integers with a friendly CLI error.
+ */
+export function parseIntArg(value: string): number {
+  const parsed = parseInt(value, 10);
+  if (Number.isNaN(parsed)) {
+    throw new InvalidArgumentError("Not a valid integer.");
+  }
+  return parsed;
+}
 
 /**
  * Resolve the target profile, checking (in order):

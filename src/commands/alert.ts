@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { AlertApi, type AlertChannel } from "../api/alert.js";
 import { canonicalizeChannelType } from "../api/notification.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
-import { resolveClient } from "./helpers.js";
+import { resolveClient, parseIntArg } from "./helpers.js";
 
 function buildChannel(opts: {
   channelType: string;
@@ -111,7 +111,7 @@ Examples:
   cmd
     .command("create")
     .description("Create a new alert")
-    .requiredOption("--card <id>", "Card ID to alert on", parseInt)
+    .requiredOption("--card <id>", "Card ID to alert on", parseIntArg)
     .option("--condition <condition>", "Alert condition: rows, goal", "rows")
     .option("--first-only", "Only alert the first time", false)
     .option("--above-goal", "Alert when above goal (for goal condition)", false)
@@ -178,7 +178,7 @@ Examples:
   cmd
     .command("update <id>")
     .description("Update an alert")
-    .option("--card <id>", "Card ID", parseInt)
+    .option("--card <id>", "Card ID", parseIntArg)
     .option("--condition <condition>", "Alert condition: rows, goal")
     .option("--first-only", "Only alert the first time")
     .option("--above-goal", "Alert when above goal")

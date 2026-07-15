@@ -10,6 +10,7 @@ import {
 import type { Profile, SessionAuth, ApiKeyAuth } from "../types.js";
 import { formatEntityTable } from "../utils/output.js";
 import { MetabaseClient } from "../client.js";
+import { parseIntArg } from "./helpers.js";
 
 export function profileCommand(): Command {
   const cmd = new Command("profile").description("Manage Metabase profiles").addHelpText(
@@ -34,7 +35,7 @@ Examples:
     .option("--email <email>", "Login email")
     .option("--password <password>", "Login password")
     .option("--api-key <key>", "API key (alternative to email/password)")
-    .option("--default-db <id>", "Default database ID for queries", parseInt)
+    .option("--default-db <id>", "Default database ID for queries", parseIntArg)
     .addHelpText(
       "after",
       `
