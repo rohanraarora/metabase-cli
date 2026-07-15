@@ -164,7 +164,7 @@ Examples:
     .command("update <id>")
     .description("Update a notification")
     .option("--active <boolean>", "Set active status: true, false")
-    .option("--card <id>", "Reassign the notification's card", parseInt)
+    .option("--card <id>", "Reassign the notification's card", parseIntArg)
     .addHelpText(
       "after",
       `

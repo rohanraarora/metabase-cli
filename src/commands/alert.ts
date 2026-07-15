@@ -242,7 +242,7 @@ Examples:
             enabled: true,
             schedule_type: opts.scheduleType,
             schedule_hour:
-              opts.scheduleHour !== undefined ? parseInt(opts.scheduleHour) : undefined,
+              opts.scheduleHour !== undefined ? parseIntArg(opts.scheduleHour) : undefined,
           });
       }
 
