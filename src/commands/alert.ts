@@ -1,5 +1,10 @@
 import { Command } from "commander";
-import { AlertApi, type AlertChannel } from "../api/alert.js";
+import {
+  AlertApi,
+  type AlertChannel,
+  channelToCron,
+  type UpdateAlertParams,
+} from "../api/alert.js";
 import { canonicalizeChannelType } from "../api/notification.js";
 import { formatEntityTable, formatJson } from "../utils/output.js";
 import { resolveClient, parseIntArg } from "./helpers.js";
@@ -201,29 +206,51 @@ Examples:
       const api = new AlertApi(client);
       const alertId = parseInt(id);
 
-      const updates: Record<string, unknown> = {};
+      const updates: UpdateAlertParams = {};
       if (opts.card !== undefined) updates.card = { id: opts.card };
       if (opts.condition) updates.alert_condition = opts.condition;
       if (opts.firstOnly !== undefined) updates.alert_first_only = opts.firstOnly;
       if (opts.aboveGoal !== undefined) updates.alert_above_goal = opts.aboveGoal;
-      const channelTouched =
-        opts.channelType ||
-        opts.recipients ||
-        opts.slackChannel ||
-        opts.schedule ||
-        opts.scheduleType ||
-        opts.scheduleHour !== undefined;
-      if (channelTouched) {
+
+      // Handlers and schedule are independent: only rebuild the handler when a
+      // channel/recipient flag is given (otherwise a lone --schedule would wipe
+      // the existing Slack handler), and carry the schedule separately as cron.
+      const handlerTouched = opts.channelType || opts.recipients || opts.slackChannel;
+      if (handlerTouched) {
+        if (
+          canonicalizeChannelType(opts.channelType || "email") === "channel/slack" &&
+          !opts.slackChannel &&
+          !opts.recipients
+        ) {
+          throw new Error(
+            "Slack handler requires --slack-channel <#name> or --recipients <user_ids>.",
+          );
+        }
         updates.channels = [
           buildChannel({
             channelType: opts.channelType || "email",
             recipients: opts.recipients,
             slackChannel: opts.slackChannel,
-            schedule: opts.schedule,
-            scheduleType: opts.scheduleType,
-            scheduleHour: opts.scheduleHour,
           }),
         ];
+      }
+      if (opts.schedule || opts.scheduleType) {
+        updates.cron =
+          opts.schedule ??
+          channelToCron({
+            channel_type: opts.channelType || "email",
+            enabled: true,
+            schedule_type: opts.scheduleType,
+            schedule_hour:
+              opts.scheduleHour !== undefined ? parseIntArg(opts.scheduleHour) : undefined,
+          });
+      }
+
+      if (Object.keys(updates).length === 0) {
+        throw new Error(
+          "Nothing to update. Pass at least one of --card, --condition, --first-only, " +
+            "--above-goal, --channel-type, --recipients, --slack-channel, --schedule.",
+        );
       }
 
       const alert = await api.update(alertId, updates);
