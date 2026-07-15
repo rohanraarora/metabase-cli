@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2026-07-15
+
+### Added
+
+- `notification update --card <id>` flag — reassigns a notification's card by merging a new `payload.card_id` into the existing notification. (#24)
+
+### Fixed
+
+- Integer CLI options are now parsed in base 10 via a shared `parseIntArg` helper instead of passing the global `parseInt` as a Commander coercion. Commander calls coercions as `fn(value, previous)`, so a numeric default became the radix: `dashboard add-card --width 12` (default 6) silently parsed as `parseInt("12", 6) === 8`, and `--height 8` (default 4) became `NaN` → `400 Bad Request: dashcards: [object Object]`. All ~30 integer options now share the helper and reject non-integer input with a clear error. (#23)
+- `alert update`, `alert delete`, and `notification update` now work on Metabase v0.59+, which rejects partial `PUT /api/notification/:id` bodies. The CLI now reads the current notification, merges the requested change, and PUTs the full object back with every nested id (handlers, recipients, subscriptions, payload) preserved. Previously the partial body either 400'd (`missing required key` / `invalid dispatch value`) or — because the server diffs nested rows by `:id` and deletes anything missing — silently corrupted the alert into a card-less orphan. (#24)
+- `alert update --schedule` no longer wipes the existing Slack/email handler: the cron schedule is carried separately from the handler definition, and handlers are only rebuilt when a channel/recipient flag is passed. (#24)
+- `alert delete` archives in place via `active:false` (v0.59+ has no `DELETE /api/notification/:id` route), and a pre-existing corrupt null-payload orphan now fails with a clear, actionable message instead of a cryptic 500. (#24)
+
+### Security
+
+- Resolved all open `npm audit` / Dependabot advisories (dev dependencies only): `esbuild` → 0.28.1 via override (arbitrary file read in the Windows dev server — GHSA-g7r4-m6w7-qqqr, low) and `js-yaml` (quadratic-complexity DoS in merge-key handling — GHSA-h67p-54hq-rp68, moderate). `npm audit` reports 0 vulnerabilities. No runtime dependencies changed.
+
 ## [0.7.0] - 2026-06-02
 
 ### Added
@@ -159,6 +176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
+[0.8.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/rohanraarora/metabase-cli/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/rohanraarora/metabase-cli/compare/v0.4.1...v0.5.0
